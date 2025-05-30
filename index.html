@@ -1,207 +1,25 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ürün Takip Sistemi</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 700px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin: auto;
-            text-align: center;
-        }
-        h2 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-        .form-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 15px;
-        }
-        .form-group input {
-            width: 45%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: 0.3s;
-        }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn:hover { opacity: 0.8; }
+<script>
+  let lastOrderKey = null;
 
-        /* Tablo için */
-        .table-container {
-            width: 100%;
-            overflow-x: auto; /* Mobilde kaydırmayı etkinleştir */
-            margin-top: 20px;
-            display: none; /* Başlangıçta gizli */
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: auto; /* Ortalamak için */
-        }
-        th, td {
-            border: 1px solid #dee2e6;
-            padding: 12px; /* Satırları genişlet */
-            text-align: center;
-        }
-        th {
-            background: #343a40;
-            color: white;
-        }
-        .btn-sm {
-            padding: 5px 10px;
-            font-size: 14px;
-            margin: 2px;
-        }
+  db.ref("orders").limitToLast(1).on("child_added", (snapshot) => {
+    const orderKey = snapshot.key;
+    if (orderKey !== lastOrderKey) {
+      lastOrderKey = orderKey;
 
-        /* Mobil uyumluluk */
-        @media (max-width: 600px) {
-            th, td {
-                padding: 8px;
-                font-size: 14px;
-            }
-            .form-group {
-                flex-direction: column;
-                gap: 5px;
-            }
-            .form-group input {
-                width: 100%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>STOK TAKİP©</h2>
-        <div class="form-group">
-            <input type="text" id="urunAdi" placeholder="Ürün Adı">
-            <input type="text" id="urunAdet" placeholder="Adet (Örn: 10 koli)">
-        </div>
-        <button class="btn btn-success" onclick="urunEkle()">Ürünü Kaydet</button>
-        <button class="btn btn-primary" onclick="urunleriGoster()">Ürünleri Göster</button>
+      // Ses çal
+      const sound = document.getElementById("notification-sound");
+      if (sound) sound.play();
 
-        <div class="table-container" id="tableContainer">
-            <table id="urunTablosu">
-                <thead>
-                    <tr>
-                        <th>Ürün Adı</th>
-                        <th>Adet</th>
-                        <th>Tarih</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+      // Popup göster
+      const data = snapshot.val();
+      const total = data.items.reduce((a, b) => a + b.price * b.quantity, 0);
 
-        <button class="btn btn-danger" onclick="tumVerileriSil()">Tüm Verileri Sil</button>
-    </div>
-
-    <script>
-        let urunler = JSON.parse(localStorage.getItem("urunler")) || [];
-
-        function urunEkle() {
-            let urunAdi = document.getElementById("urunAdi").value.trim();
-            let urunAdet = document.getElementById("urunAdet").value.trim();
-
-            if (urunAdi === "" || urunAdet === "") {
-                alert("Lütfen ürün adı ve adet girin!");
-                return;
-            }
-
-            let tarih = new Date().toLocaleString();
-            urunler.push({ id: Date.now(), ad: urunAdi, adet: urunAdet, tarih });
-
-            localStorage.setItem("urunler", JSON.stringify(urunler));
-            document.getElementById("urunAdi").value = "";
-            document.getElementById("urunAdet").value = "";
-            alert("Ürün kaydedildi! Ürünleri görmek için 'Ürünleri Göster' butonuna basın.");
-        }
-
-        function urunleriGoster() {
-            let tablo = document.getElementById("urunTablosu");
-            let tbody = tablo.getElementsByTagName("tbody")[0];
-            let tableContainer = document.getElementById("tableContainer");
-
-            tbody.innerHTML = "";
-
-            urunler = JSON.parse(localStorage.getItem("urunler")) || [];
-
-            if (urunler.length === 0) {
-                alert("Henüz eklenmiş bir ürün yok.");
-                return;
-            }
-
-            urunler.forEach(urun => {
-                let satir = tbody.insertRow();
-                satir.innerHTML = `
-                    <td>${urun.ad}</td>
-                    <td>${urun.adet}</td>
-                    <td>${urun.tarih}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="duzenle(${urun.id})">Düzenle</button>
-                        <button class="btn btn-sm btn-danger" onclick="sil(${urun.id})">Sil</button>
-                    </td>
-                `;
-            });
-
-            tableContainer.style.display = "block"; // Tabloyu görünür yap
-        }
-
-        function duzenle(id) {
-            let urun = urunler.find(urun => urun.id === id);
-            let yeniAd = prompt("Yeni ürün adı:", urun.ad);
-            let yeniAdet = prompt("Yeni adet:", urun.adet);
-
-            if (yeniAd && yeniAdet) {
-                urun.ad = yeniAd;
-                urun.adet = yeniAdet;
-                urun.tarih = new Date().toLocaleString();
-                localStorage.setItem("urunler", JSON.stringify(urunler));
-                urunleriGoster();
-            } else {
-                alert("Geçerli değerler girin!");
-            }
-        }
-
-        function sil(id) {
-            if (confirm("Bu ürünü silmek istediğinize emin misiniz?")) {
-                urunler = urunler.filter(urun => urun.id !== id);
-                localStorage.setItem("urunler", JSON.stringify(urunler));
-                urunleriGoster();
-            }
-        }
-
-        function tumVerileriSil() {
-            if (confirm("Tüm ürünleri silmek istediğinize emin misiniz?")) {
-                urunler = [];
-                localStorage.removeItem("urunler");
-                document.getElementById("tableContainer").style.display = "none"; // Tabloyu gizle
-            }
-        }
-    </script>
-</body>
-</html>
+      Swal.fire({
+        title: "🔔 Yeni Sipariş!",
+        text: `${data.name} - ₺${total}`,
+        icon: "info",
+        confirmButtonText: "Tamam"
+      });
+    }
+  });
+</script>
