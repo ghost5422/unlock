@@ -1,25 +1,161 @@
-<script>
-  let lastOrderKey = null;
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Ürün Listesi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f4f7fa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-  db.ref("orders").limitToLast(1).on("child_added", (snapshot) => {
-    const orderKey = snapshot.key;
-    if (orderKey !== lastOrderKey) {
-      lastOrderKey = orderKey;
+    h2 {
+      text-align: center;
+      margin: 30px 0 10px;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-      // Ses çal
-      const sound = document.getElementById("notification-sound");
-      if (sound) sound.play();
+    /* Gelen Ürünler başlığı kırmızı */
+    h2:nth-of-type(1) {
+      color: #e53935;
+    }
 
-      // Popup göster
-      const data = snapshot.val();
-      const total = data.items.reduce((a, b) => a + b.price * b.quantity, 0);
+    /* Gelen Ürünler tablosu başlık rengi ve arka plan */
+    #incomingTable th {
+      background: #ffebee;
+      color: #e53935;
+    }
 
-      Swal.fire({
-        title: "🔔 Yeni Sipariş!",
-        text: `${data.name} - ₺${total}`,
-        icon: "info",
-        confirmButtonText: "Tamam"
+    /* Mevcut Ürünler tablosu */
+    #outgoingTable th {
+      background: #e3f2fd;
+      color: #1e88e5;
+    }
+
+    table {
+      width: 100%;
+      max-width: 700px;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      font-size: 15px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      table {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2><i class="fas fa-truck-loading"></i> Gelen Ürünler</h2>
+  <table id="incomingTable">
+    <thead>
+      <tr>
+        <th><i class="fas fa-box"></i> Ürün Adı</th>
+        <th><i class="fas fa-layer-group"></i> Adet</th>
+        <th><i class="fas fa-calendar-alt"></i> Tarih</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2><i class="fas fa-boxes"></i> Mevcut Ürünler</h2>
+  <table id="outgoingTable">
+    <thead>
+      <tr>
+        <th><i class="fas fa-box"></i> Ürün Adı</th>
+        <th><i class="fas fa-layer-group"></i> Adet</th>
+        <th><i class="fas fa-calendar-alt"></i> Tarih</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBKUs5FM50ejN9tVdvUNzocRGU5Q5lD2eo",
+      authDomain: "urunrakip.firebaseapp.com",
+      databaseURL: "https://urunrakip-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "urunrakip",
+      storageBucket: "urunrakip.appspot.com",
+      messagingSenderId: "893193039416",
+      appId: "1:893193039416:web:8624c79038f5dc9a2ac0cd"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase();
+
+    function loadIncoming() {
+      const tbody = document.querySelector("#incomingTable tbody");
+      onValue(ref(db, "gelenler"), snapshot => {
+        tbody.innerHTML = "";
+        snapshot.forEach(child => {
+          const data = child.val();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${data.name}</td>
+            <td>${data.qty}</td>
+            <td>${data.date}</td>
+          `;
+          tbody.appendChild(row);
+        });
       });
     }
-  });
-</script>
+
+    function loadOutgoing() {
+      const tbody = document.querySelector("#outgoingTable tbody");
+      onValue(ref(db, "urunler"), snapshot => {
+        tbody.innerHTML = "";
+        snapshot.forEach(child => {
+          const data = child.val();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${data.name}</td>
+            <td>${data.qty}</td>
+            <td>${data.date}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      });
+    }
+
+    loadIncoming();
+    loadOutgoing();
+  </script>
+
+</body>
+</html>
