@@ -1,161 +1,436 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <title>Ürün Listesi</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #f4f7fa;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNLOCK WEB SERVICES</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
-    h2 {
-      text-align: center;
-      margin: 30px 0 10px;
-      font-size: 22px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+        :root {
+            --bg-color: #050505;
+            --primary-color: #00ff41; /* Matrix Yeşili */
+            --text-color: #e0e0e0;
+            --card-bg: rgba(10, 20, 10, 0.7);
+            --alert-color: #ff003c; /* Kırmızı Uyarı Rengi */
+            --warning-color: #ffea00;
+        }
 
-    /* Gelen Ürünler başlığı kırmızı */
-    h2:nth-of-type(1) {
-      color: #e53935;
-    }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    /* Gelen Ürünler tablosu başlık rengi ve arka plan */
-    #incomingTable th {
-      background: #ffebee;
-      color: #e53935;
-    }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            padding-bottom: 80px;
+        }
 
-    /* Mevcut Ürünler tablosu */
-    #outgoingTable th {
-      background: #e3f2fd;
-      color: #1e88e5;
-    }
+        /* Scanline Efekti */
+        body::before {
+            content: " ";
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: -1;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
 
-    table {
-      width: 100%;
-      max-width: 700px;
-      border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 30px;
-    }
+        /* --- DETAY POPUP (MODAL) --- */
+        .info-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(8px);
+        }
 
-    th, td {
-      padding: 12px;
-      border-bottom: 1px solid #ddd;
-      text-align: left;
-      font-size: 15px;
-    }
+        .info-content {
+            background: #000;
+            border: 1px solid var(--primary-color);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 255, 65, 0.15);
+            animation: zoomIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
 
-    @media (max-width: 600px) {
-      body {
-        padding: 10px;
-      }
-      table {
-        width: 100%;
-      }
-    }
-  </style>
+        .close-btn:hover { color: #fff; transform: rotate(90deg); }
+
+        .modal-title {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed var(--primary-color);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .modal-body { font-size: 1.1rem; color: #ccc; line-height: 1.6; margin-bottom: 30px; }
+        
+        .modal-action-btn {
+            background: var(--primary-color);
+            color: #000;
+            text-decoration: none;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-radius: 4px;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+            margin-top: auto;
+        }
+
+        .modal-action-btn:hover {
+            background: #fff;
+            transform: scale(1.02);
+            box-shadow: 0 0 25px rgba(0, 255, 65, 0.8);
+        }
+
+        /* --- HEADER --- */
+        header {
+            text-align: center;
+            padding: 40px 15px 20px 15px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+        }
+
+        h1 {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            color: var(--primary-color);
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
+            margin-bottom: 5px;
+        }
+
+        .subtitle { color: var(--alert-color); font-size: 0.9rem; letter-spacing: 2px; }
+
+        /* --- INSTAGRAM UYARISI --- */
+        .insta-warning-banner {
+            max-width: 900px;
+            margin: 20px auto 10px auto;
+            padding: 15px;
+            background: rgba(255, 0, 60, 0.08);
+            border: 1px solid var(--alert-color);
+            color: var(--alert-color);
+            text-align: center;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(255, 0, 60, 0.15);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 10px rgba(255, 0, 60, 0.1); }
+            50% { box-shadow: 0 0 20px rgba(255, 0, 60, 0.3); }
+            100% { box-shadow: 0 0 10px rgba(255, 0, 60, 0.1); }
+        }
+
+        /* --- KİMLİK KARTI --- */
+        .identity-container { max-width: 900px; margin: 20px auto 30px auto; padding: 0 20px; }
+
+        .identity-card {
+            border: 1px solid var(--primary-color);
+            background: rgba(0, 15, 0, 0.8);
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            position: relative;
+        }
+
+        .identity-card::before {
+            content: '[ Ben: UNLOCK ]';
+            position: absolute; top: -10px; left: 20px;
+            background: var(--bg-color); padding: 0 10px;
+            color: var(--primary-color); font-size: 0.8rem;
+        }
+
+        .identity-icon-box {
+            font-size: 3rem; color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            width: 80px; height: 80px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .identity-text h2 { font-size: 1.4rem; color: #fff; margin-bottom: 5px; }
+        .identity-text p { font-size: 0.9rem; color: #bbb; }
+        .highlight { color: var(--primary-color); font-weight: bold; }
+
+        /* --- SERVİSLER --- */
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+
+        .service-card {
+            background: var(--card-bg);
+            border: 1px solid #1a1a1a;
+            padding: 30px 20px;
+            text-align: center;
+            transition: 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 220px;
+            height: auto;
+        }
+
+        .service-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+            background: rgba(0, 30, 0, 0.8);
+            transform: translateY(-5px);
+        }
+
+        .service-card i.main-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            transition: 0.3s;
+        }
+
+        .service-card h3 {
+            color: #fff;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .click-hint {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .service-card:hover .click-hint { opacity: 1; color: var(--primary-color); }
+        .service-card:hover i.main-icon { transform: scale(1.1); text-shadow: 0 0 10px var(--primary-color); }
+
+        /* Sarı Crack Bilgisi Stili */
+        .crack-info {
+            font-size: 0.75rem;
+            color: var(--warning-color);
+            border: 1px dashed var(--warning-color);
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 4px;
+            background: rgba(255, 234, 0, 0.05);
+            line-height: 1.3;
+        }
+
+        .whatsapp-float-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(0,0,0,0.9);
+            color: var(--primary-color);
+            padding: 12px 25px;
+            border: 1px solid var(--primary-color);
+            text-decoration: none; font-weight: bold;
+            display: flex; align-items: center; gap: 10px;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        @media (max-width: 768px) {
+            .identity-card { flex-direction: column; text-align: center; }
+            .whatsapp-float-btn { width: 90%; left: 5%; right: 5%; justify-content: center; }
+            .insta-warning-banner { width: 90%; margin-left: 5%; margin-right: 5%; font-size: 0.9rem;}
+        }
+
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
 </head>
 <body>
 
-  <h2><i class="fas fa-truck-loading"></i> Gelen Ürünler</h2>
-  <table id="incomingTable">
-    <thead>
-      <tr>
-        <th><i class="fas fa-box"></i> Ürün Adı</th>
-        <th><i class="fas fa-layer-group"></i> Adet</th>
-        <th><i class="fas fa-calendar-alt"></i> Tarih</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div id="crypto-warning" class="info-modal" style="display: flex;">
+        <div class="info-content" style="text-align: center; border-color: var(--alert-color);">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: var(--alert-color); margin-bottom: 20px;"></i>
+            <h2 style="color: var(--alert-color); margin-bottom: 20px;">ÖNEMLİ UYARI</h2>
+            <p style="color: #ddd; margin-bottom: 25px; font-size: 1.1rem;">
+           GÜVENLİK NEDENİYLE TÜM ÖDEMELER SADECE <br>
+                <span style="color: var(--primary-color); font-weight: bold; font-size: 1.3rem;">KRİPTO (USDT)</span>
+                <br> İLE KABUL EDİLMEKTEDİR. Lütfen IBAN TEKLİF ETMEYİN!
+            </p>
+            
+            <button onclick="document.getElementById('crypto-warning').style.display='none'" 
+                    style="
+                        background: transparent; 
+                        border: 2px solid var(--alert-color); 
+                        color: var(--alert-color); 
+                        padding: 15px 40px; 
+                        cursor: pointer; 
+                        font-family: inherit;
+                        font-size: 1.4rem; 
+                        font-weight: bold; 
+                        letter-spacing: 2px;
+                        text-transform: uppercase;
+                        transition: 0.3s;
+                        margin-top: 10px;
+                        width: 100%;
+                        max-width: 400px;
+                    "
+                    onmouseover="this.style.background='var(--alert-color)'; this.style.color='#000';"
+                    onmouseout="this.style.background='transparent'; this.style.color='var(--alert-color)';"
+            >
+                >> SİSTEME GİRİŞ YAP <<
+            </button>
+        </div>
+    </div>
 
-  <h2><i class="fas fa-boxes"></i> Mevcut Ürünler</h2>
-  <table id="outgoingTable">
-    <thead>
-      <tr>
-        <th><i class="fas fa-box"></i> Ürün Adı</th>
-        <th><i class="fas fa-layer-group"></i> Adet</th>
-        <th><i class="fas fa-calendar-alt"></i> Tarih</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div id="service-modal" class="info-modal">
+        <div class="info-content">
+            <span class="close-btn" onclick="closeServiceModal()">✖</span>
+            <div class="modal-title">
+                <i id="modal-icon" class="fa-solid"></i>
+                <span id="modal-title-text">BAŞLIK</span>
+            </div>
+            <div class="modal-body" id="modal-desc">
+                Açıklama buraya gelecek...
+            </div>
+            
+            <a href="#" id="modal-contact-link" class="modal-action-btn" target="_blank">
+                <i class="fa-brands fa-whatsapp"></i> SİPARİŞ VER / BİLGİ AL
+            </a>
+        </div>
+    </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+    <header>
+        <h1>UNLOCK WEB SERVİSLERİ</h1>
+        <p class="subtitle">İllegal Değil, Underground.</p>
+    </header>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBKUs5FM50ejN9tVdvUNzocRGU5Q5lD2eo",
-      authDomain: "urunrakip.firebaseapp.com",
-      databaseURL: "https://urunrakip-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "urunrakip",
-      storageBucket: "urunrakip.appspot.com",
-      messagingSenderId: "893193039416",
-      appId: "1:893193039416:web:8624c79038f5dc9a2ac0cd"
-    };
+    <div class="insta-warning-banner">
+        <i class="fa-solid fa-ban" style="font-size: 1.5rem;"></i>
+        <span>INSTAGRAM ÇALMIYORUM. SORMAYIN!</span>
+    </div>
+    
+    <div class="identity-container">
+        <div class="identity-card">
+            <div class="identity-icon-box">
+                <i class="fa-solid fa-user-secret"></i>
+            </div>
+            <div class="identity-text">
+                <h2>> ADMİN: UNLOCK</h2>
+                <p>
+                    Merhaba. Ben <span class="highlight">Unlock</span>. 
+                    23 yaşındayım. Sınırları zorlayan sistemler ve 
+                    özel erişimli çözümler geliştiriyorum.
+                </p>
+            </div>
+        </div>
+    </div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase();
+    <div class="container">
+        <div class="services-grid">
+            
+            <div class="service-card" onclick="openService('id-card', 'SORGU SİSTEMLERİ', 'Kişisel kimlik bilgileri, plaka sorgulama, güncel numara tespiti, vesika fotoğraf erişimi ve daha fazlası.')">
+                <i class="fa-solid fa-id-card main-icon"></i>
+                <h3>KİMLİK SORGULAMA</h3>
+                <p style="font-size: 0.8rem; color: #aaa;">Kimlik sorgulama Numara sorgulama Vb.</p>
+                <div class="click-hint">DETAY İÇİN TIKLA</div>
+            </div>
 
-    function loadIncoming() {
-      const tbody = document.querySelector("#incomingTable tbody");
-      onValue(ref(db, "gelenler"), snapshot => {
-        tbody.innerHTML = "";
-        snapshot.forEach(child => {
-          const data = child.val();
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${data.name}</td>
-            <td>${data.qty}</td>
-            <td>${data.date}</td>
-          `;
-          tbody.appendChild(row);
-        });
-      });
-    }
+            <div class="service-card" onclick="openService('circle-play', 'PREMIUM HESAPLAR', 'Netflix, Exxen, Disney+, HBO MAX gibi platformlar için yüksek kaliteli crack hesaplar.\n\n[CRACK NEDİR?]: Brute-force veya database sızıntılarıyla elde edilen, gerçek kullanıcılara ait ancak erişimi paylaşılabilen premium hesaplardır. Orijinal abonelik ücreti ödemeden daha ucuza izleme imkanı sunar.')">
+                <i class="fa-solid fa-circle-play main-icon"></i>
+                <h3>PREMIUM HESAP</h3>
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">Netflix, Exxen vb.</p>
+                <div class="crack-info">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>CRACK NEDİR?</strong><br>
+                    Şifresi kırılmış, paylaşımlı premium hesaplardır.
+                </div>
+                <div class="click-hint">DETAY İÇİN TIKLA</div>
+            </div>
 
-    function loadOutgoing() {
-      const tbody = document.querySelector("#outgoingTable tbody");
-      onValue(ref(db, "urunler"), snapshot => {
-        tbody.innerHTML = "";
-        snapshot.forEach(child => {
-          const data = child.val();
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${data.name}</td>
-            <td>${data.qty}</td>
-            <td>${data.date}</td>
-          `;
-          tbody.appendChild(row);
-        });
-      });
-    }
+            <div class="service-card" onclick="openService('tv', 'IP TV & YAYIN', 'Donma ve kesilme olmadan izleyebileceğiniz yüksek performanslı IP TV hizmeti. +4K kalitesinde Ulusal kanallar, Spor müsabakaları (TÜM SPOR KANALLARI HD), Smart TV, Telefon ve Bilgisayar uyumlu sorunsuz altyapı.')">
+                <i class="fa-solid fa-tv main-icon"></i>
+                <h3>IP TV HİZMETİ</h3>
+                <p style="font-size: 0.8rem; color: #aaa;">+4K Yayın & Maç Keyfi</p>
+                <div class="click-hint">DETAY İÇİN TIKLA</div>
+            </div>
+            
+            <div class="service-card" onclick="openService('robot', 'ÖZEL YAZILIM & TELEGRAM BOTU', 'Tamamen isteğinize göre tasarlanan web yazılımları, iş süreçlerinizi hızlandıran otomasyonlar ve gelişmiş özelliklere sahip Telegram botları. Sizin fikriniz, benim kodlarım :).')">
+                <i class="fa-solid fa-robot main-icon"></i>
+                <h3>WEB & BOT YAZILIM</h3>
+                <p style="font-size: 0.8rem; color: #aaa;">Otomasyon & Telegram</p>
+                <div class="click-hint">DETAY İÇİN TIKLA</div>
+            </div>
 
-    loadIncoming();
-    loadOutgoing();
-  </script>
+        </div>
+    </div>
+
+    <a href="https://wa.me/447442525362" class="whatsapp-float-btn" target="_blank">
+        <i class="fa-brands fa-whatsapp"></i> GENEL İLETİŞİM
+    </a>
+
+    <script>
+        function openService(icon, title, desc) {
+            const modal = document.getElementById('service-modal');
+            const contactBtn = document.getElementById('modal-contact-link');
+            
+            // YENİ NUMARA GÜNCELLENDİ
+            const phone = "447442525362"; 
+            
+            const message = `Merhaba Unlock, ${title} servisi hakkında detaylı bilgi ve fiyat almak istiyorum.`;
+            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+            document.getElementById('modal-icon').className = 'fa-solid fa-' + icon;
+            document.getElementById('modal-title-text').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            contactBtn.href = whatsappUrl;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeServiceModal() {
+            document.getElementById('service-modal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('service-modal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
 
 </body>
 </html>
