@@ -1,842 +1,955 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Frekans — Ses Frekansı Analiz ve Üretim</title>
-<style>
-  :root{
-    --bg: #030508;
-    --panel: #090e12;
-    --panel-2: #10171d;
-    --border: #00f0ff;
-    --border-dim: rgba(0, 240, 255, 0.2);
-    --text: #d1f4fa;
-    --text-dim: #628a94;
-    --teal: #00f0ff;
-    --teal-rgb: 0, 240, 255;
-    --amber: #ffb700;
-    --amber-rgb: 255, 183, 0;
-    --red: #ff0055;
-    --green: #00ffaa;
-    --grid: rgba(0, 240, 255, 0.03);
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{
-    background-color: var(--bg);
-    background-image: 
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 30px 30px;
-    color:var(--text);
-  }
-  body{
-    font-family: 'Consolas', 'Courier New', 'SF Mono', ui-monospace, monospace;
-    text-transform: uppercase;
-    min-height:100vh;
-    padding:24px 16px calc(50px + env(safe-area-inset-bottom));
-    -webkit-tap-highlight-color:transparent;
-  }
-  .container{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
-  
-  header{padding:10px 4px 14px; border-bottom: 1px solid var(--border-dim); position: relative;}
-  header::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 40px; height: 3px; background: var(--teal); }
-  header h1{
-    font-size:32px;letter-spacing:4px;color:var(--teal);
-    text-shadow: 0 0 10px rgba(var(--teal-rgb), 0.5);
-  }
-  header p.subtitle{color:var(--text-dim);font-size:12px;margin-top:6px; letter-spacing: 2px;}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Gelişmiş Frekans Tanıma Sistemi</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-hover: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --border: #334155;
+            --radius: 12px;
+        }
 
-  .card{
-    background:var(--panel);
-    border:1px solid var(--border-dim);
-    padding:20px;
-    position: relative;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-  }
-  .card::before, .card::after {
-    content: ''; position: absolute; width: 12px; height: 12px; border: 1px solid var(--teal);
-  }
-  .card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
-  .card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
 
-  .card h2{font-size:13px; letter-spacing:0.15em; color:var(--teal); margin-bottom:16px; font-weight:normal;}
-  .card h2::before { content: '>'; margin-right: 8px; color: var(--amber); }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
 
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    min-height:48px;padding:0 20px; border:1px solid var(--border-dim);
-    font-size:14px;font-weight:bold;cursor:pointer;background:var(--panel-2);color:var(--text);
-    transition:all .2s ease;
-    user-select:none;
-    font-family: inherit;
-    letter-spacing: 1px;
-    text-transform: inherit;
-  }
-  .btn:active{transform:scale(0.98);}
-  .btn:disabled{opacity:0.2;cursor:not-allowed; border-color: transparent;}
-  .btn:focus-visible{outline:none; box-shadow: 0 0 0 2px var(--teal);}
-  
-  .btn-primary{background:rgba(var(--teal-rgb), 0.1);color:var(--teal);border-color:var(--teal);}
-  .btn-primary:not(:disabled):hover{background:var(--teal);color:#000; box-shadow: 0 0 15px rgba(var(--teal-rgb), 0.6);}
-  
-  .btn-outline{background:transparent;border-color:var(--border-dim);color:var(--text-dim);}
-  .btn-outline:not(:disabled):hover{border-color:var(--teal);color:var(--teal);}
-  
-  .btn-amber{background:rgba(var(--amber-rgb), 0.1);color:var(--amber);border-color:var(--amber);}
-  .btn-amber:not(:disabled):hover{background:var(--amber);color:#000; box-shadow: 0 0 15px rgba(var(--amber-rgb), 0.6);}
-  
-  .btn-danger{background:transparent;border-color:rgba(255,0,85,0.4);color:var(--red);}
-  .btn-danger:hover{background:var(--red); color:#000; border-color:var(--red); box-shadow: 0 0 15px var(--red);}
-  
-  .btn-small{min-height:34px;padding:0 12px;font-size:12px;}
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
 
-  input[type=text], input[type=number] {
-    background: var(--panel-2);
-    border: 1px solid var(--border-dim);
-    color: var(--teal);
-    font-family: inherit;
-    font-size: 16px;
-    padding: 0 16px;
-    outline: none;
-    transition: all 0.2s;
-    text-transform: inherit;
-  }
-  input[type=text]:focus, input[type=number]:focus {
-    border-color: var(--teal);
-    box-shadow: inset 0 0 10px rgba(var(--teal-rgb), 0.2);
-  }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-  .mic-controls{display:flex;flex-wrap:wrap;gap:12px;}
-  .mic-controls .btn{flex:1 1 160px;}
-  .status-msg{margin-top:14px;font-size:12px;color:var(--text-dim); letter-spacing: 1px;}
-  .status-msg::before { content: '[ '; color: var(--border-dim); }
-  .status-msg::after { content: ' ]'; color: var(--border-dim); }
-  .status-msg.ok{color:var(--green);}
-  .status-msg.error{color:var(--red);}
-  .hint{margin-top:12px;font-size:11px;color:var(--text-dim);line-height:1.6; opacity:0.7;}
+        h1 { font-size: 1.5rem; margin-bottom: 5px; color: var(--accent); }
+        h2 { font-size: 1.1rem; color: var(--text-muted); font-weight: normal; margin-bottom: 15px; }
 
-  .freq-display{text-align:center;transition:border-color .3s ease, box-shadow .3s ease;}
-  .freq-readout{display:flex;align-items:baseline;justify-content:center;gap:12px;}
-  .freq-number{
-    font-size:clamp(52px,15vw,84px);
-    color:var(--teal);
-    text-shadow:0 0 15px rgba(var(--teal-rgb),0.6), 0 0 30px rgba(var(--teal-rgb),0.2);
-    letter-spacing: -2px; line-height: 1;
-  }
-  .freq-unit{font-size:24px;color:var(--amber); letter-spacing: 2px;}
-  .freq-caption{margin-top:14px;color:var(--text-dim);font-size:12px;letter-spacing:0.15em;}
-  .freq-status{margin-top:8px;min-height:16px;font-size:12px;color:var(--amber);}
-  .confidence-label{margin-top:4px;font-size:12px;color:var(--text-dim);}
-  
-  .freq-actions{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:24px;}
-  .save-name-input { grid-column: 1 / -1; min-height: 48px; text-align: center; font-size: 14px !important; letter-spacing: 2px;}
-  .freq-actions .btn { grid-column: span 1; }
-  @media (max-width: 400px) { .freq-actions .btn { grid-column: 1 / -1; } }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
 
-  @keyframes scanGlow{
-    0%,100%{box-shadow:inset 0 0 20px rgba(0,0,0,0.5), 0 0 0 rgba(var(--teal-rgb),0);}
-    50%{box-shadow:inset 0 0 20px rgba(0,0,0,0.5), 0 0 20px rgba(var(--teal-rgb),0.3);}
-  }
-  .freq-display.is-listening{animation:scanGlow 2s infinite; border-color:var(--teal);}
+        /* Ana Tanıma Ekranı */
+        .main-display {
+            text-align: center;
+            padding: 40px 20px;
+            position: relative;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
 
-  .level-bar-track{background:var(--panel-2);overflow:hidden;height:12px;border:1px solid var(--border-dim); position:relative;}
-  .level-bar-track::after {
-    content: ''; position: absolute; inset: 0;
-    background: repeating-linear-gradient(90deg, transparent, transparent 4px, var(--panel) 4px, var(--panel) 5px);
-  }
-  .level-bar-fill{height:100%;width:0%;background:var(--teal);transition:width .1s linear; box-shadow: 0 0 10px var(--teal);}
-  .level-percent{margin-top:10px;font-size:12px;color:var(--text-dim);text-align:right;}
+        .status-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-  canvas{width:100%;display:block;background:var(--panel-2);border:1px solid var(--border-dim);}
-  #waveCanvas{height:100px;}
-  #specCanvas{height:130px;margin-top:10px;}
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+        }
 
-  .saved-list{display:flex;flex-direction:column;gap:12px;}
-  .empty-msg{color:var(--text-dim);font-size:12px;padding:8px 0; font-style: italic;}
-  .saved-item{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-    background:var(--panel-2);border:1px solid var(--border-dim);padding:14px;
-    border-left: 3px solid var(--teal);
-  }
-  .saved-info{display:flex;flex-direction:column;gap:6px;}
-  .saved-name{font-size:14px; font-weight:bold; color:var(--text); letter-spacing: 1px;}
-  .saved-freq{font-size:18px;color:var(--teal); text-shadow: 0 0 8px rgba(var(--teal-rgb), 0.4);}
-  .saved-date{font-size:10px;color:var(--text-dim); letter-spacing: 1px;}
-  .saved-actions{display:flex;gap:8px;flex-wrap:wrap;}
+        .detected-label {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            margin: 10px 0;
+            line-height: 1.1;
+            word-break: break-word;
+        }
 
-  .gen-input-row{display:flex;align-items:stretch;gap:12px;margin-bottom:16px;}
-  .gen-input-row input[type=number]{ flex:1; min-height:48px; font-size:24px; color:var(--amber); text-shadow: 0 0 10px rgba(var(--amber-rgb), 0.3);}
-  .gen-input-row input[type=number]:focus { border-color: var(--amber); box-shadow: inset 0 0 10px rgba(var(--amber-rgb), 0.1); }
-  .gen-input-row span{display:flex; align-items:center; color:var(--text-dim); font-size: 14px;}
-  
-  .gen-controls{display:flex;flex-wrap:wrap;gap:12px;}
-  .gen-controls .btn{flex:1 1 160px;}
-  #genStatus{margin-top:14px;font-size:12px;color:var(--text-dim); letter-spacing: 1px;}
-  #genStatus.playing{color:var(--amber); text-shadow: 0 0 5px rgba(var(--amber-rgb), 0.5);}
-  
-  .volume-row{margin-top:20px;display:flex;align-items:center;gap:16px; background:var(--panel-2); padding: 12px; border: 1px solid var(--border-dim);}
-  .volume-row label{font-size:11px;color:var(--text-dim);flex:0 0 auto;}
-  .volume-row input[type=range]{flex:1;accent-color:var(--amber); height: 2px; background: var(--border-dim); -webkit-appearance: none; outline: none;}
-  .volume-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--amber); cursor: pointer; border-radius: 0;}
-  .volume-row span{font-size:12px;color:var(--amber);min-width:40px;text-align:right;}
+        .detected-hz {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
 
-  .file-picker-btn{
-    display:flex;align-items:center;justify-content:center;min-height:48px;
-    border:1px dashed var(--border-dim);background:var(--panel-2);color:var(--text);
-    font-size:14px;cursor:pointer; transition: all 0.2s; letter-spacing: 1px;
-  }
-  .file-picker-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(var(--teal-rgb), 0.05); }
-  .file-name{margin-top:12px;font-size:11px;color:var(--amber);word-break:break-all;}
-  #analyzeFileBtn{margin-top:14px;width:100%;}
-  .file-result{margin-top:14px;font-size:14px;color:var(--teal);min-height:20px; text-shadow: 0 0 8px rgba(var(--teal-rgb), 0.4);}
+        .confidence {
+            margin-top: 10px;
+            font-size: 0.95rem;
+            color: var(--success);
+            font-weight: bold;
+        }
 
-  footer{text-align:center;color:var(--text-dim);font-size:10px;padding:12px 4px 0; letter-spacing: 1px;}
-</style>
+        /* Grafik */
+        canvas {
+            width: 100%;
+            height: 120px;
+            background: #000;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .canvas-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* Butonlar & Kontroller */
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .flex-row > * { flex: 1; min-width: 140px; }
+
+        button {
+            background-color: var(--card-hover);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover { background-color: var(--border); }
+        button.primary { background-color: var(--accent); border-color: var(--accent); }
+        button.primary:hover { background-color: var(--accent-hover); }
+        button.danger { color: var(--danger); }
+        button.danger:hover { background-color: rgba(239, 68, 68, 0.1); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            color: white;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        input:focus, select:focus { outline: 2px solid var(--accent); }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); }
+
+        /* Kayıt Listesi */
+        .record-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .record-header { display: flex; justify-content: space-between; align-items: center; }
+        .record-title { font-weight: bold; font-size: 1.1rem; }
+        .record-hz { color: var(--accent); font-weight: bold; }
+        .record-actions { display: flex; gap: 5px; }
+        .record-actions button { padding: 6px 10px; font-size: 0.85rem; min-width: auto; }
+
+        /* Modal (Ayarlar) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1000; padding: 20px;
+        }
+        .modal {
+            background: var(--card-bg); border-radius: var(--radius);
+            width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+            padding: 25px; border: 1px solid var(--border);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; color: white; cursor: pointer; padding: 0; min-width: auto; }
+
+        /* Sliders */
+        .range-wrap { display: flex; align-items: center; gap: 10px; }
+        .range-wrap input[type="range"] { flex: 1; margin: 0; cursor: pointer; }
+        .range-value { min-width: 50px; text-align: right; font-weight: bold; color: var(--accent); }
+
+        .hidden { display: none !important; }
+        
+        hr { border: 0; height: 1px; background: var(--border); margin: 20px 0; }
+
+        /* Mobile specific fixes */
+        @media (max-width: 480px) {
+            .flex-row { flex-direction: column; }
+            .record-header { flex-direction: column; align-items: flex-start; gap: 5px; }
+            .record-actions { width: 100%; }
+            .record-actions button { flex: 1; }
+        }
+    </style>
 </head>
 <body>
+
 <div class="container">
+    <header>
+        <h1>🎯 Frekans Tanıma Sistemi</h1>
+        <h2>Sese İsim Verin, Frekansını Tanıyın</h2>
+    </header>
 
-  <header>
-    <h1>FREKANS</h1>
-    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.2_AUDIO_FIX</p>
-  </header>
-
-  <section class="card">
-    <h2>Sistem Girisi</h2>
-    <div class="mic-controls">
-      <button id="micStartBtn" class="btn btn-primary">MIKROFONU BASLAT</button>
-      <button id="micStopBtn" class="btn btn-outline" disabled>MIKROFONU DURDUR</button>
+    <!-- Ana Ekran -->
+    <div class="card main-display" id="mainDisplay">
+        <div class="status-badge">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Mikrofon Kapalı</span>
+        </div>
+        <div class="detected-label" id="mainLabel">Sistem Hazır</div>
+        <div class="detected-hz" id="mainHz">-- Hz</div>
+        <div class="confidence hidden" id="mainConfidence">Güven: --%</div>
     </div>
-    <p id="micStatus" class="status-msg">SISTEM BEKLEMEDE</p>
-    <p class="hint" id="secureHint">SEC_WARN: Sistem erisimi icin HTTPS veya Localhost protokolleri zorunludur.</p>
-  </section>
 
-  <section class="card freq-display" id="freqDisplayCard">
-    <div class="freq-readout">
-      <span id="freqNumber" class="freq-number">0.0</span><span class="freq-unit">HZ</span>
+    <!-- Analiz ve Kontroller -->
+    <div class="card">
+        <div class="canvas-label">Dalga Şekli (Üst) & Frekans Spektrumu (Alt)</div>
+        <canvas id="visualizer"></canvas>
+        
+        <div class="flex-row">
+            <button class="primary" id="btnMic" onclick="toggleMic()">🎙️ Mikrofonu Başlat</button>
+            <button onclick="openSettings()">⚙️ Ayarlar</button>
+        </div>
+        <div class="flex-row">
+            <input type="file" id="audioFileInput" accept="audio/*" class="hidden" onchange="handleAudioFile(event)">
+            <button onclick="document.getElementById('audioFileInput').click()">📁 Ses Dosyası Analiz Et</button>
+        </div>
+        <audio id="audioPlayer" controls style="width: 100%; display: none; margin-top: 10px;"></audio>
     </div>
-    <p class="freq-caption">CANLI VERI AKISI</p>
-    <p id="freqStatus" class="freq-status"></p>
-    <p id="confidenceLabel" class="confidence-label">VERI DOGRULUGU: %0</p>
-    <div class="freq-actions">
-      <input type="text" id="saveNameInput" class="save-name-input" placeholder="KAYIT ADI GIRINIZ..." autocomplete="off">
-      <button id="useDetectedBtn" class="btn btn-outline" disabled>JENERATORE AKTAR</button>
-      <button id="saveFreqBtn" class="btn btn-primary" disabled>BELLEGE KAYDET</button>
+
+    <!-- Yeni Frekans Öğretme -->
+    <div class="card">
+        <h3>🎯 Yeni Frekans Öğret</h3>
+        <hr>
+        <div class="flex-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Etiket Adı (Örn: Berkay, A Sesi)</label>
+                <input type="text" id="teachLabel" placeholder="Etiket girin...">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Frekans (Hz)</label>
+                <input type="number" id="teachHz" placeholder="Örn: 300" step="0.1">
+            </div>
+        </div>
+        <div class="flex-row">
+            <button onclick="startTeaching()" id="btnTeachMic">🎙️ Mikrofondan Dinle (3sn)</button>
+            <button class="primary" onclick="saveFrequency()">💾 Kaydet / Öğret</button>
+        </div>
+        <div id="teachStatus" style="text-align: center; color: var(--accent); margin-top: 10px; font-weight: bold;"></div>
     </div>
-  </section>
 
-  <section class="card">
-    <h2>Sinyal Gucu</h2>
-    <div class="level-bar-track"><div id="levelBarFill" class="level-bar-fill"></div></div>
-    <p id="levelPercent" class="level-percent">0%</p>
-  </section>
-
-  <section class="card">
-    <h2>Osilaskop [Waveform]</h2>
-    <canvas id="waveCanvas"></canvas>
-    <h2 style="margin-top:24px;">Spektrum [FFT]</h2>
-    <canvas id="specCanvas"></canvas>
-  </section>
-
-  <section class="card">
-    <h2>Yerel Bellek</h2>
-    <div id="savedList" class="saved-list"></div>
-  </section>
-
-  <section class="card">
-    <h2>Sinyal Jeneratoru</h2>
-    <div class="gen-input-row">
-      <input type="number" id="genFreqInput" value="440" min="20" max="20000" step="0.1" inputmode="decimal">
-      <span>HZ</span>
+    <!-- Öğretilen Frekanslar -->
+    <div class="card">
+        <h3>📚 Öğretilen Frekanslar</h3>
+        <hr>
+        <div id="recordsList">
+            <p style="color: var(--text-muted); text-align: center;">Henüz kayıtlı frekans yok.</p>
+        </div>
     </div>
-    <div class="gen-controls">
-      <button id="genPlayBtn" class="btn btn-amber">SINYALI BASLAT</button>
-      <button id="genStopBtn" class="btn btn-outline" disabled>SINYALI KES</button>
-    </div>
-    <p id="genStatus">JENERATOR PASIF</p>
-    <div class="volume-row">
-      <label for="volumeSlider">AMPLITUDE</label>
-      <input type="range" id="volumeSlider" min="0" max="100" value="25">
-      <span id="volumeValue">25%</span>
-    </div>
-  </section>
 
-  <section class="card">
-    <h2>Harici Dosya Analizi</h2>
-    <label class="file-picker-btn" for="audioFileInput">[ DOSYA SEC ]</label>
-    <input type="file" id="audioFileInput" accept="audio/*" hidden>
-    <p id="fileNameLabel" class="file-name"></p>
-    <button id="analyzeFileBtn" class="btn btn-primary" disabled>ANALIZI BASLAT</button>
-    <p id="fileResult" class="file-result"></p>
-  </section>
+    <!-- Frekans Üretici -->
+    <div class="card">
+        <h3>🔊 Frekans Üretici (Test)</h3>
+        <hr>
+        <div class="flex-row">
+            <div class="form-group">
+                <label>Frekans (Hz)</label>
+                <input type="number" id="genHz" value="440">
+            </div>
+            <div class="form-group">
+                <label>Dalga Şekli</label>
+                <select id="genType">
+                    <option value="sine">Sine (Sinüs)</option>
+                    <option value="square">Square (Kare)</option>
+                    <option value="triangle">Triangle (Üçgen)</option>
+                    <option value="sawtooth">Sawtooth (Testere)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Ses Seviyesi</label>
+            <div class="range-wrap">
+                <input type="range" id="genVol" min="0" max="100" value="25">
+                <span class="range-value" id="genVolVal">%25</span>
+            </div>
+        </div>
+        <div class="flex-row">
+            <button class="primary" id="btnGenPlay" onclick="toggleGenerator()">▶️ Çal</button>
+        </div>
+    </div>
+</div>
 
-  <footer>
-    <p>VERILER CIHAZ ICINDE ISLENMEKTEDIR. DIS BAGLANTI YOK.</p>
-  </footer>
+<!-- Ayarlar Modalı -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>⚙️ Hassasiyet & Ayarlar</h3>
+            <button class="modal-close" onclick="closeSettings()">&times;</button>
+        </div>
+        
+        <div class="form-group">
+            <label>Genel Hassasiyet (Tolerans ± %)</label>
+            <div class="range-wrap">
+                <input type="range" id="setTolerance" min="0.1" max="15" step="0.1" value="3.0">
+                <span class="range-value" id="setToleranceVal">%3.0</span>
+            </div>
+            <small style="color: var(--text-muted)">Düşük değer = Sıkı tanıma. Yüksek değer = Geniş tolerans.</small>
+        </div>
+
+        <div class="form-group">
+            <label>Minimum Ses Seviyesi (Gürültü Engelleme)</label>
+            <div class="range-wrap">
+                <input type="range" id="setMinVol" min="1" max="50" value="5">
+                <span class="range-value" id="setMinVolVal">%5</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Minimum Tanıma Güveni (%)</label>
+            <div class="range-wrap">
+                <input type="range" id="setMinConf" min="50" max="99" value="80">
+                <span class="range-value" id="setMinConfVal">%80</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Tanıma Kararlılığı (Ardışık Ölçüm)</label>
+            <div class="range-wrap">
+                <input type="range" id="setStability" min="1" max="20" value="5">
+                <span class="range-value" id="setStabilityVal">5</span>
+            </div>
+            <small style="color: var(--text-muted)">Titremeyi önler. Değer artarsa tanıma gecikir ama kesinleşir.</small>
+        </div>
+
+        <hr>
+        <h4>Veri Yönetimi</h4>
+        <div class="flex-row" style="margin-top: 15px;">
+            <button onclick="exportData()">📤 Dışa Aktar</button>
+            <button onclick="document.getElementById('importFile').click()">📥 İçe Aktar</button>
+            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+        </div>
+        <button class="danger" style="width: 100%; margin-top: 10px;" onclick="clearAllData()">🗑️ Tüm Öğrenilenleri Sil</button>
+    </div>
 </div>
 
 <script>
-(function(){
-  'use strict';
+    // --- TEMEL DURUM VE AYARLAR ---
+    let state = {
+        isMicActive: false,
+        isTeaching: false,
+        teachBuffer: [],
+        history: [], // Son N frekans ölçümü (Kararlılık için)
+        tags: [], // Kaydedilen frekanslar
+        settings: {
+            tolerancePct: 3.0,
+            minVolume: 5,
+            minConfidence: 80,
+            stabilityFrames: 5
+        }
+    };
 
-  // ---------- DOM ----------
-  const micStartBtn = document.getElementById('micStartBtn');
-  const micStopBtn = document.getElementById('micStopBtn');
-  const micStatusEl = document.getElementById('micStatus');
-  const secureHintEl = document.getElementById('secureHint');
+    // --- SES MOTORU (Web Audio API) ---
+    let audioCtx, analyser, micStream, mediaSource, fileSource, genOsc, genGain;
+    const FFT_SIZE = 4096;
 
-  const freqDisplayCard = document.getElementById('freqDisplayCard');
-  const freqNumberEl = document.getElementById('freqNumber');
-  const freqStatusEl = document.getElementById('freqStatus');
-  const confidenceLabelEl = document.getElementById('confidenceLabel');
-  const useDetectedBtn = document.getElementById('useDetectedBtn');
-  const saveFreqBtn = document.getElementById('saveFreqBtn');
-  const saveNameInput = document.getElementById('saveNameInput');
+    // --- DOM ELEMENTLERİ ---
+    const UI = {
+        mainDisplay: document.getElementById('mainDisplay'),
+        mainLabel: document.getElementById('mainLabel'),
+        mainHz: document.getElementById('mainHz'),
+        mainConf: document.getElementById('mainConfidence'),
+        statusText: document.getElementById('statusText'),
+        statusDot: document.getElementById('statusDot'),
+        canvas: document.getElementById('visualizer'),
+        btnMic: document.getElementById('btnMic'),
+        recordsList: document.getElementById('recordsList'),
+        audioPlayer: document.getElementById('audioPlayer')
+    };
+    const canvasCtx = UI.canvas.getContext('2d');
 
-  const levelBarFill = document.getElementById('levelBarFill');
-  const levelPercentEl = document.getElementById('levelPercent');
-
-  const waveCanvas = document.getElementById('waveCanvas');
-  const specCanvas = document.getElementById('specCanvas');
-  let waveCtx = null, specCtx = null;
-
-  const savedListEl = document.getElementById('savedList');
-
-  const genFreqInput = document.getElementById('genFreqInput');
-  const genPlayBtn = document.getElementById('genPlayBtn');
-  const genStopBtn = document.getElementById('genStopBtn');
-  const genStatusEl = document.getElementById('genStatus');
-  const volumeSlider = document.getElementById('volumeSlider');
-  const volumeValueEl = document.getElementById('volumeValue');
-
-  const audioFileInput = document.getElementById('audioFileInput');
-  const fileNameLabelEl = document.getElementById('fileNameLabel');
-  const analyzeFileBtn = document.getElementById('analyzeFileBtn');
-  const fileResultEl = document.getElementById('fileResult');
-
-  // ---------- State ----------
-  let audioCtx = null;
-  let micStream = null, micSource = null, analyser = null;
-  let timeDataArray = null, freqDataArray = null;
-  let rafId = null;
-  
-  let currentDetectedFreq = null;
-  let smoothedFreq = null; 
-  let lastValidFreq = null;
-  let holdTimer = 0;
-
-  let genOscillator = null, genGain = null;
-
-  const STORAGE_KEY = 'frekans_kayitlari_v4';
-
-  function ensureAudioContext(){
-    if (!audioCtx){
-      const AC = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AC();
-    }
-    // iOS için güvenli Context başlatma
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-    return audioCtx;
-  }
-
-  function setMicStatus(msg, kind){
-    micStatusEl.textContent = msg;
-    micStatusEl.className = 'status-msg' + (kind ? (' ' + kind) : '');
-  }
-
-  function fmtDate(ts){
-    try{
-      const d = new Date(ts);
-      return d.toLocaleDateString('tr-TR') + ' ' + d.toLocaleTimeString('tr-TR');
-    }catch(e){ return ''; }
-  }
-
-  if (!window.isSecureContext){
-    secureHintEl.textContent = 'ERR: GUVENLI BAGLANTI (HTTPS/LOCALHOST) BULUNAMADI.';
-    secureHintEl.style.color = 'var(--red)';
-    secureHintEl.style.opacity = '1';
-  }
-
-  function detectPitch(buffer, sampleRate){
-    const SIZE = buffer.length;
-    let sumSq = 0;
-    for (let i = 0; i < SIZE; i++) {
-      sumSq += buffer[i] * buffer[i];
-    }
-    const rms = Math.sqrt(sumSq / SIZE);
-
-    if (rms < 0.001) {
-      return { freq: null, confidence: 0, reason: 'silence' };
+    // --- BAŞLATMA ---
+    function init() {
+        loadData();
+        setupEventListeners();
+        renderRecords();
+        updateUIState('idle');
     }
 
-    const minFreq = 40;
-    const maxFreq = 2200;
-    const maxPeriod = Math.floor(sampleRate / minFreq);
-    const minPeriod = Math.floor(sampleRate / maxFreq);
+    function setupEventListeners() {
+        // Slider olayları
+        const bindSlider = (id, stateKey, suffix = '') => {
+            const el = document.getElementById(id);
+            const valEl = document.getElementById(id + 'Val');
+            el.value = state.settings[stateKey];
+            valEl.innerText = el.value + suffix;
+            el.addEventListener('input', (e) => {
+                state.settings[stateKey] = parseFloat(e.target.value);
+                valEl.innerText = e.target.value + suffix;
+                saveData();
+            });
+        };
 
-    const c = new Float32Array(maxPeriod + 1);
-    for (let lag = minPeriod; lag <= maxPeriod; lag++) {
-      let sum = 0;
-      for (let i = 0; i < SIZE - lag; i++) {
-        sum += buffer[i] * buffer[i + lag];
-      }
-      c[lag] = sum;
+        bindSlider('setTolerance', 'tolerancePct', '%');
+        bindSlider('setMinVol', 'minVolume', '%');
+        bindSlider('setMinConf', 'minConfidence', '%');
+        bindSlider('setStability', 'stabilityFrames', '');
+
+        document.getElementById('genVol').addEventListener('input', (e) => {
+            document.getElementById('genVolVal').innerText = '%' + e.target.value;
+            if (genGain) genGain.gain.value = e.target.value / 100;
+        });
+
+        document.getElementById('genHz').addEventListener('input', (e) => {
+            if (genOsc) genOsc.frequency.value = e.target.value;
+        });
+        document.getElementById('genType').addEventListener('change', (e) => {
+            if (genOsc) genOsc.type = e.target.value;
+        });
     }
 
-    let maxVal = -Infinity;
-    let maxPos = -1;
-    for (let lag = minPeriod; lag <= maxPeriod; lag++) {
-      if (c[lag] > maxVal) {
-        maxVal = c[lag];
-        maxPos = lag;
-      }
+    // --- SES GİRİŞİ YÖNETİMİ ---
+    async function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = FFT_SIZE;
+            analyser.smoothingTimeConstant = 0.8;
+            requestAnimationFrame(analysisLoop);
+        }
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
     }
 
-    if (maxPos < 0 || maxVal <= 0) return { freq: null, confidence: 0, reason: 'noisy' };
-
-    let T0 = maxPos;
-    if (maxPos > minPeriod && maxPos < maxPeriod) {
-      const x1 = c[maxPos - 1], x2 = c[maxPos], x3 = c[maxPos + 1];
-      const a = (x1 + x3 - 2 * x2) / 2;
-      const b = (x3 - x1) / 2;
-      if (a !== 0) T0 = maxPos - b / (2 * a);
+    async function toggleMic() {
+        await initAudio();
+        
+        if (state.isMicActive) {
+            // Kapat
+            if (micStream) micStream.getTracks().forEach(t => t.stop());
+            if (mediaSource) mediaSource.disconnect();
+            state.isMicActive = false;
+            UI.btnMic.innerHTML = '🎙️ Mikrofonu Başlat';
+            UI.btnMic.classList.remove('danger');
+            updateUIState('idle');
+        } else {
+            // Aç
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+                mediaSource = audioCtx.createMediaStreamSource(micStream);
+                mediaSource.connect(analyser);
+                state.isMicActive = true;
+                UI.btnMic.innerHTML = '⏹️ Mikrofonu Durdur';
+                UI.btnMic.classList.add('danger');
+                updateUIState('listening');
+            } catch (err) {
+                alert("Mikrofon izni alınamadı!");
+                console.error(err);
+            }
+        }
     }
 
-    const freq = sampleRate / T0;
-    const confidence = sumSq > 0 ? Math.min(1, Math.max(0, maxVal / sumSq)) : 0;
-
-    return { freq: freq, confidence: confidence, reason: 'ok' };
-  }
-
-  function setupCanvas(canvas){
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.round(rect.width * dpr));
-    canvas.height = Math.max(1, Math.round(rect.height * dpr));
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return ctx;
-  }
-  function setupCanvases(){
-    waveCtx = setupCanvas(waveCanvas);
-    specCtx = setupCanvas(specCanvas);
-  }
-  let resizeTimer = null;
-  window.addEventListener('resize', function(){
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(setupCanvases, 150);
-  });
-
-  function clearCanvas(ctx, canvas){
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-  }
-
-  function drawWave(data){
-    if (!waveCtx) return;
-    const w = waveCanvas.clientWidth, h = waveCanvas.clientHeight;
-    waveCtx.clearRect(0, 0, w, h);
-    
-    waveCtx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
-    waveCtx.lineWidth = 1;
-    waveCtx.beginPath();
-    waveCtx.moveTo(0, h/2); waveCtx.lineTo(w, h/2); waveCtx.stroke();
-
-    waveCtx.beginPath();
-    waveCtx.lineWidth = 2;
-    waveCtx.strokeStyle = '#00f0ff';
-    const step = data.length / w;
-    for (let x = 0; x < w; x++){
-      const idx = Math.floor(x * step);
-      const v = data[idx];
-      const y = h/2 - v * (h/2) * 0.9;
-      if (x === 0) waveCtx.moveTo(x, y); else waveCtx.lineTo(x, y);
-    }
-    waveCtx.stroke();
-  }
-
-  function drawSpectrum(freqData, sampleRate, fftSize){
-    if (!specCtx) return;
-    const w = specCanvas.clientWidth, h = specCanvas.clientHeight;
-    specCtx.clearRect(0, 0, w, h);
-    const maxDisplayFreq = 4000;
-    const binHz = sampleRate / fftSize;
-    const maxBin = Math.max(1, Math.min(freqData.length, Math.ceil(maxDisplayFreq / binHz)));
-    const barW = w / maxBin;
-
-    for (let i = 0; i < maxBin; i++){
-      const v = freqData[i] / 255;
-      const barH = v * h;
-      const r = Math.floor(v * 255);
-      const g = Math.floor(255 - v * 100);
-      specCtx.fillStyle = `rgb(${r},${g},0)`;
-      specCtx.fillRect(i * barW, h - barH, Math.max(1, barW - 0.5), barH);
+    function handleAudioFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        initAudio();
+        const url = URL.createObjectURL(file);
+        UI.audioPlayer.src = url;
+        UI.audioPlayer.style.display = 'block';
+        
+        if (!fileSource) {
+            fileSource = audioCtx.createMediaElementSource(UI.audioPlayer);
+            fileSource.connect(analyser);
+            fileSource.connect(audioCtx.destination);
+        }
+        
+        UI.audioPlayer.play();
+        state.isMicActive = true; // Simüle et
+        updateUIState('listening');
     }
 
-    if (currentDetectedFreq){
-      const x = (currentDetectedFreq / binHz) * barW;
-      if (x >= 0 && x <= w){
-        specCtx.strokeStyle = '#00f0ff';
-        specCtx.lineWidth = 1;
-        specCtx.setLineDash([4, 4]);
-        specCtx.beginPath();
-        specCtx.moveTo(x, 0); specCtx.lineTo(x, h);
-        specCtx.stroke();
-        specCtx.setLineDash([]);
-      }
-    }
-  }
+    // --- FREKANS ANALİZ ALGORİTMASI (Autocorrelation) ---
+    // Sesin gerçek temel frekansını bulmak için FFT tek başına yetersizdir, Autocorrelation kullanılır.
+    function autoCorrelate(buf, sampleRate) {
+        let SIZE = buf.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / SIZE);
+        
+        // Ses seviyesi eşiği
+        if (rms < (state.settings.minVolume / 100)) return -1;
 
-  async function startMic(){
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      setMicStatus('ERR: DONANIM BULUNAMADI', 'error');
-      return;
-    }
-    const ctx = ensureAudioContext();
-    try{
-      micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-      });
-    }catch(err){
-      setMicStatus('ERR: ERISIM REDDEDILDI VEYA DONANIM YOK.', 'error');
-      return;
-    }
+        let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+        for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+        
+        buf = buf.slice(r1, r2);
+        SIZE = buf.length;
 
-    micSource = ctx.createMediaStreamSource(micStream);
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.2;
-    micSource.connect(analyser);
-    timeDataArray = new Float32Array(analyser.fftSize);
-    freqDataArray = new Uint8Array(analyser.frequencyBinCount);
+        let c = new Array(SIZE).fill(0);
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE - i; j++) {
+                c[i] = c[i] + buf[j] * buf[j + i];
+            }
+        }
 
-    micStartBtn.disabled = true;
-    micStopBtn.disabled = false;
-    setMicStatus('SISTEM AKTIF — CANLI AKIS', 'ok');
-    freqDisplayCard.classList.add('is-listening');
-    loop();
-  }
+        let d = 0; while (c[d] > c[d + 1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < SIZE; i++) {
+            if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+        }
+        let T0 = maxpos;
+        
+        // Parabolik interpolasyon (hassasiyet için)
+        let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+        let a = (x1 + x3 - 2 * x2) / 2;
+        let b = (x3 - x1) / 2;
+        if (a) T0 = T0 - b / (2 * a);
 
-  function stopMic(){
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
-    if (micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
-    if (micSource){ try{ micSource.disconnect(); }catch(e){} micSource = null; }
-    analyser = null;
-
-    micStartBtn.disabled = false;
-    micStopBtn.disabled = true;
-    setMicStatus('SISTEM KAPALI', '');
-    freqDisplayCard.classList.remove('is-listening');
-
-    freqNumberEl.textContent = '0.0';
-    freqStatusEl.textContent = '';
-    confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
-    
-    useDetectedBtn.disabled = true;
-    saveFreqBtn.disabled = true;
-    
-    currentDetectedFreq = null;
-    smoothedFreq = null;
-    lastValidFreq = null;
-    holdTimer = 0;
-
-    levelBarFill.style.width = '0%';
-    levelPercentEl.textContent = '0%';
-    clearCanvas(waveCtx, waveCanvas);
-    clearCanvas(specCtx, specCanvas);
-  }
-
-  function loop(){
-    if (!analyser) return;
-    analyser.getFloatTimeDomainData(timeDataArray);
-    analyser.getByteFrequencyData(freqDataArray);
-
-    let sum = 0;
-    for (let i = 0; i < timeDataArray.length; i++){ sum += timeDataArray[i] * timeDataArray[i]; }
-    const rms = Math.sqrt(sum / timeDataArray.length);
-    const levelPct = Math.max(0, Math.min(100, Math.round(rms * 350)));
-    levelBarFill.style.width = levelPct + '%';
-    levelPercentEl.textContent = levelPct + '%';
-
-    const result = detectPitch(timeDataArray, audioCtx.sampleRate);
-    const now = Date.now();
-    
-    if (result.reason === 'ok' && result.confidence > 0.1) {
-      const rawFreq = result.freq;
-      
-      if (smoothedFreq === null) {
-        smoothedFreq = rawFreq;
-      } else {
-        smoothedFreq = smoothedFreq * 0.5 + rawFreq * 0.5;
-      }
-
-      currentDetectedFreq = smoothedFreq;
-      lastValidFreq = smoothedFreq; 
-      holdTimer = now; 
-
-      freqNumberEl.textContent = smoothedFreq.toFixed(1);
-      freqStatusEl.textContent = 'SES ALGILANDI';
-      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence * 100);
-      
-    } else {
-      if (now - holdTimer < 1500 && lastValidFreq !== null) {
-        currentDetectedFreq = lastValidFreq; 
-        freqStatusEl.textContent = 'BEKLEMEDE...'; 
-      } else {
-        freqNumberEl.textContent = '0.0';
-        freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
-        confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
-        currentDetectedFreq = null;
-        smoothedFreq = null;
-        lastValidFreq = null;
-      }
+        return sampleRate / T0;
     }
 
-    const canSave = currentDetectedFreq !== null;
-    useDetectedBtn.disabled = !canSave;
-    saveFreqBtn.disabled = !canSave;
+    // --- ANA DÖNGÜ (Live Analysis) ---
+    function analysisLoop() {
+        requestAnimationFrame(analysisLoop);
+        
+        if (!analyser) return;
 
-    drawWave(timeDataArray);
-    drawSpectrum(freqDataArray, audioCtx.sampleRate, analyser.fftSize);
+        // Görselleştirme verileri
+        const w = UI.canvas.width = UI.canvas.offsetWidth;
+        const h = UI.canvas.height = UI.canvas.offsetHeight;
+        
+        const timeData = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(timeData);
+        
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(freqData);
 
-    rafId = requestAnimationFrame(loop);
-  }
+        // Arka plan
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.fillRect(0, 0, w, h);
 
-  micStartBtn.addEventListener('click', startMic);
-  micStopBtn.addEventListener('click', stopMic);
+        // 1. Frekans Spektrumu Çizimi (Alt Yarı)
+        const barWidth = (w / freqData.length) * 2.5;
+        let x = 0;
+        for (let i = 0; i < freqData.length; i++) {
+            const barHeight = (freqData[i] / 255) * (h / 2);
+            canvasCtx.fillStyle = `rgb(59, 130, 246)`; // Mavi ton
+            canvasCtx.fillRect(x, h - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
+        }
 
-  // ---------- Kayıtlı Frekanslar ----------
-  function loadSaved(){
-    try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch(e){ return []; }
-  }
-  function persistSaved(list){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }catch(e){}
-  }
-  function renderSaved(){
-    const list = loadSaved();
-    savedListEl.innerHTML = '';
-    if (list.length === 0){
-      const p = document.createElement('p');
-      p.className = 'empty-msg';
-      p.textContent = 'BELLEK BOS.';
-      savedListEl.appendChild(p);
-      return;
+        // 2. Dalga Şekli Çizimi (Üst Yarı)
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = '#22c55e'; // Yeşil ton
+        canvasCtx.beginPath();
+        const sliceWidth = w * 1.0 / timeData.length;
+        x = 0;
+        for (let i = 0; i < timeData.length; i++) {
+            const v = timeData[i] * 0.5; // Scale
+            const y = (h / 4) + (v * h / 2);
+            if (i === 0) canvasCtx.moveTo(x, y);
+            else canvasCtx.lineTo(x, y);
+            x += sliceWidth;
+        }
+        canvasCtx.stroke();
+
+        // 3. Frekans Tespiti ve Mantık
+        if (!state.isMicActive && (!UI.audioPlayer.paused && !UI.audioPlayer.ended) === false) return;
+
+        let detectedHz = autoCorrelate(timeData, audioCtx.sampleRate);
+        
+        // Öğretme Modu
+        if (state.isTeaching) {
+            if (detectedHz !== -1 && detectedHz > 20 && detectedHz < 20000) {
+                state.teachBuffer.push(detectedHz);
+            }
+            return; // Ana ekranı güncelleme
+        }
+
+        // Normal Tanıma Modu
+        processDetectedPitch(detectedHz, w, h);
     }
-    list.forEach(function(rec){
-      const item = document.createElement('div');
-      item.className = 'saved-item';
-      item.dataset.id = String(rec.id);
 
-      const info = document.createElement('div');
-      info.className = 'saved-info';
-      
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'saved-name';
-      nameSpan.textContent = rec.name || 'ISIMSIZ KAYIT';
+    function processDetectedPitch(hz, canvasW, canvasH) {
+        // Geçerli bir frekans yoksa geçmişe null ekle
+        if (hz === -1 || isNaN(hz) || hz < 20 || hz > 20000) {
+            updateHistory(null);
+            return;
+        }
 
-      const freqSpan = document.createElement('span');
-      freqSpan.className = 'saved-freq';
-      freqSpan.textContent = rec.freq.toFixed(1) + ' HZ';
-      
-      const dateSpan = document.createElement('span');
-      dateSpan.className = 'saved-date';
-      dateSpan.textContent = fmtDate(rec.ts);
-      
-      info.appendChild(nameSpan);
-      info.appendChild(freqSpan);
-      info.appendChild(dateSpan);
+        // Marker Çizimi (Grafik Üzerinde Kırmızı Çizgi)
+        const nyquist = audioCtx.sampleRate / 2;
+        const markerX = (hz / nyquist) * canvasW;
+        canvasCtx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+        canvasCtx.fillRect(markerX - 1, 0, 2, canvasH);
+        canvasCtx.fillStyle = '#fff';
+        canvasCtx.font = '10px Arial';
+        canvasCtx.fillText(hz.toFixed(0) + 'Hz', markerX + 5, 15);
 
-      const actions = document.createElement('div');
-      actions.className = 'saved-actions';
-      actions.innerHTML =
-        '<button data-action="use" class="btn btn-small btn-outline">AKTAR</button>' +
-        '<button data-action="play" class="btn btn-small btn-amber">CAL</button>' +
-        '<button data-action="delete" class="btn btn-small btn-danger">SIL</button>';
+        // Eşleştirme Yap
+        let bestMatch = null;
+        let highestConf = 0;
 
-      item.appendChild(info);
-      item.appendChild(actions);
-      savedListEl.appendChild(item);
-    });
-  }
+        for (const tag of state.tags) {
+            // Yüzdesel fark hesapla (cent/ratio tabanlı müzikal yaklaşım için logaritmik)
+            // Daha basit ve anlaşılır olması için doğrudan % tolerans kullanıyoruz.
+            const diffRatio = Math.abs(hz - tag.hz) / tag.hz * 100;
+            
+            if (diffRatio <= state.settings.tolerancePct) {
+                // Güven hesabı: Fark 0 ise %100 güven, fark tolerans sınırındaysa minConfidence.
+                const confRange = 100 - state.settings.minConfidence;
+                let conf = 100 - (diffRatio / state.settings.tolerancePct) * confRange;
+                
+                if (conf >= state.settings.minConfidence && conf > highestConf) {
+                    highestConf = conf;
+                    bestMatch = { ...tag, detectedHz: hz, conf: conf };
+                }
+            }
+        }
 
-  saveFreqBtn.addEventListener('click', function(){
-    if (currentDetectedFreq == null) return;
-    const list = loadSaved();
-    
-    let recordName = saveNameInput.value.trim();
-    if (!recordName) recordName = 'DATA_' + Math.floor(Math.random() * 9000 + 1000);
-
-    list.unshift({ id: Date.now(), freq: currentDetectedFreq, name: recordName, ts: Date.now() });
-    persistSaved(list);
-    renderSaved();
-    
-    saveNameInput.value = '';
-  });
-
-  savedListEl.addEventListener('click', function(e){
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const item = btn.closest('.saved-item');
-    if (!item) return;
-    const id = Number(item.dataset.id);
-    const list = loadSaved();
-    const rec = list.find(r => r.id === id);
-    if (!rec) return;
-    const action = btn.dataset.action;
-    if (action === 'use'){
-      genFreqInput.value = rec.freq.toFixed(1);
-    } else if (action === 'play'){
-      genFreqInput.value = rec.freq.toFixed(1);
-      startGen(rec.freq);
-    } else if (action === 'delete'){
-      persistSaved(list.filter(r => r.id !== id));
-      renderSaved();
+        if (bestMatch) {
+            updateHistory(bestMatch);
+        } else {
+            updateHistory({ label: 'Bilinmeyen', detectedHz: hz, conf: 0, isUnknown: true });
+        }
     }
-  });
 
-  // ---------- GÜNCELLENMİŞ FREKANS ÜRETİCİ (APPLE/SAFARİ UYUMLU) ----------
-  function startGen(freq){
-    const ctx = ensureAudioContext();
-    stopGen();
-    
-    genGain = ctx.createGain();
-    // iOS uyumluluğu için .value yerine setValueAtTime kullanıldı
-    genGain.gain.setValueAtTime(Number(volumeSlider.value) / 100, ctx.currentTime);
-    
-    genOscillator = ctx.createOscillator();
-    genOscillator.type = 'sine';
-    genOscillator.frequency.setValueAtTime(freq, ctx.currentTime);
-    
-    // Apple uyumluluğu: Zincirleme connect iptal edilip tek tek bağlandı
-    genOscillator.connect(genGain);
-    genGain.connect(ctx.destination);
-    
-    genOscillator.start();
-    genPlayBtn.disabled = true;
-    genStopBtn.disabled = false;
-    genStatusEl.textContent = freq.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
-    genStatusEl.classList.add('playing');
-  }
-  
-  function stopGen(){
-    if (genOscillator){
-      try{ genOscillator.stop(); }catch(e){}
-      try{ genOscillator.disconnect(); }catch(e){}
-      genOscillator = null;
+    function updateHistory(result) {
+        state.history.push(result);
+        if (state.history.length > state.settings.stabilityFrames) {
+            state.history.shift();
+        }
+
+        // Kararlılık Analizi
+        const counts = {};
+        let validFrames = 0;
+
+        state.history.forEach(res => {
+            if (res === null) return;
+            validFrames++;
+            const key = res.label;
+            counts[key] = (counts[key] || 0) + 1;
+        });
+
+        // Eğer son framelerin çoğu null ise sessizlik
+        if (validFrames < Math.ceil(state.settings.stabilityFrames / 2)) {
+            updateUIState('waiting');
+            return;
+        }
+
+        // En çok görülen etiketi bul
+        let dominantLabel = null;
+        let maxCount = 0;
+        for (const [key, count] of Object.entries(counts)) {
+            if (count > maxCount) { maxCount = count; dominantLabel = key; }
+        }
+
+        // Dominant etiketin son sonucunu bul
+        const finalResult = [...state.history].reverse().find(r => r && r.label === dominantLabel);
+
+        if (finalResult.isUnknown) {
+            updateUIState('unknown', finalResult.detectedHz);
+        } else {
+            updateUIState('recognized', finalResult.detectedHz, finalResult.label, finalResult.conf);
+        }
     }
-    if (genGain){
-      try{ genGain.disconnect(); }catch(e){}
-      genGain = null;
+
+    // --- ARAYÜZ GÜNCELLEMELERİ ---
+    function updateUIState(mode, hz = null, label = '', conf = 0) {
+        const formatHz = val => val ? val.toFixed(1) + ' Hz' : '-- Hz';
+        
+        UI.mainDisplay.style.borderColor = 'var(--border)';
+        UI.mainConf.classList.add('hidden');
+
+        switch(mode) {
+            case 'idle':
+                UI.statusDot.style.background = 'var(--text-muted)';
+                UI.statusText.innerText = 'Mikrofon Kapalı';
+                UI.mainLabel.innerText = 'Sistem Hazır';
+                UI.mainLabel.style.color = 'var(--text-main)';
+                UI.mainHz.innerText = '-- Hz';
+                break;
+            case 'waiting':
+                UI.statusDot.style.background = 'var(--text-muted)';
+                UI.statusText.innerText = 'Ses Bekleniyor...';
+                UI.mainLabel.innerText = 'Dinleniyor';
+                UI.mainLabel.style.color = 'var(--text-muted)';
+                UI.mainHz.innerText = '-- Hz';
+                break;
+            case 'unknown':
+                UI.statusDot.style.background = 'var(--danger)';
+                UI.statusText.innerText = 'Bilinmeyen Frekans';
+                UI.mainDisplay.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                UI.mainLabel.innerText = 'Bilinmeyen Ses';
+                UI.mainLabel.style.color = 'var(--text-main)';
+                UI.mainHz.innerText = formatHz(hz);
+                break;
+            case 'recognized':
+                UI.statusDot.style.background = 'var(--success)';
+                UI.statusText.innerText = 'Tanındı';
+                UI.mainDisplay.style.borderColor = 'var(--success)';
+                UI.mainLabel.innerText = label.toUpperCase();
+                UI.mainLabel.style.color = 'var(--success)';
+                UI.mainHz.innerText = formatHz(hz);
+                
+                UI.mainConf.innerText = `Tanıma Güveni: %${conf.toFixed(1)}`;
+                UI.mainConf.classList.remove('hidden');
+                break;
+        }
     }
-    genPlayBtn.disabled = false;
-    genStopBtn.disabled = true;
-    genStatusEl.textContent = 'JENERATOR PASIF';
-    genStatusEl.classList.remove('playing');
-  }
 
-  genPlayBtn.addEventListener('click', function(){
-    const f = parseFloat(genFreqInput.value);
-    if (!f || f <= 0 || !isFinite(f)){
-      genStatusEl.textContent = 'ERR: GECERSIZ DEGER';
-      genStatusEl.classList.remove('playing');
-      return;
+    // --- FREKANS ÖĞRETME ---
+    async function startTeaching() {
+        if (!state.isMicActive) await toggleMic();
+        
+        state.isTeaching = true;
+        state.teachBuffer = [];
+        const btn = document.getElementById('btnTeachMic');
+        const status = document.getElementById('teachStatus');
+        
+        btn.disabled = true;
+        btn.innerText = '🔴 Dinleniyor...';
+        status.innerText = "Lütfen sesi 3 saniye boyunca stabil tutun...";
+
+        setTimeout(() => {
+            state.isTeaching = false;
+            btn.disabled = false;
+            btn.innerText = '🎙️ Mikrofondan Dinle (3sn)';
+            
+            if (state.teachBuffer.length === 0) {
+                status.innerText = "Ses algılanamadı. Ses seviyesini artırın.";
+                return;
+            }
+
+            // Ortanca (Median) frekansı bul (Aykrırı değerleri filtrelemek için)
+            state.teachBuffer.sort((a, b) => a - b);
+            const medianHz = state.teachBuffer[Math.floor(state.teachBuffer.length / 2)];
+            
+            document.getElementById('teachHz').value = medianHz.toFixed(1);
+            status.innerText = `Frekans algılandı: ${medianHz.toFixed(1)} Hz`;
+            
+        }, 3000);
     }
-    startGen(f);
-  });
-  genStopBtn.addEventListener('click', stopGen);
 
-  genFreqInput.addEventListener('input', function(){
-    if (genOscillator){
-      const f = parseFloat(genFreqInput.value);
-      if (f && f > 0 && isFinite(f)){
-        genOscillator.frequency.setValueAtTime(f, ensureAudioContext().currentTime);
-        genStatusEl.textContent = f.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
-      }
+    function saveFrequency() {
+        const labelInput = document.getElementById('teachLabel').value.trim();
+        const hzInput = parseFloat(document.getElementById('teachHz').value);
+
+        if (!labelInput) return alert("Lütfen bir etiket adı girin (Örn: Berkay).");
+        if (!hzInput || hzInput <= 0) return alert("Geçerli bir frekans girin veya mikrofondan dinletin.");
+
+        // Çakışma kontrolü
+        const existing = state.tags.find(t => {
+            const diffRatio = Math.abs(hzInput - t.hz) / t.hz * 100;
+            return diffRatio <= state.settings.tolerancePct;
+        });
+
+        if (existing) {
+            const confirmSave = confirm(`⚠️ Bu frekans (${hzInput} Hz), mevcut "${existing.label}" (${existing.hz} Hz) kaydıyla çok yakın (Tolerans sınırları içinde).\n\nYine de kaydetmek istiyor musunuz?`);
+            if (!confirmSave) return;
+        }
+
+        const newTag = {
+            id: Date.now().toString(),
+            label: labelInput,
+            hz: hzInput,
+            date: new Date().toISOString()
+        };
+
+        state.tags.push(newTag);
+        saveData();
+        renderRecords();
+        
+        document.getElementById('teachLabel').value = '';
+        document.getElementById('teachHz').value = '';
+        document.getElementById('teachStatus').innerText = 'Kayıt başarıyla eklendi!';
+        setTimeout(() => document.getElementById('teachStatus').innerText = '', 3000);
     }
-  });
 
-  volumeSlider.addEventListener('input', function(){
-    volumeValueEl.textContent = volumeSlider.value + '%';
-    if (genGain) {
-      genGain.gain.setValueAtTime(Number(volumeSlider.value) / 100, ensureAudioContext().currentTime);
+    function deleteRecord(id) {
+        state.tags = state.tags.filter(t => t.id !== id);
+        saveData();
+        renderRecords();
     }
-  });
 
-  useDetectedBtn.addEventListener('click', function(){
-    if (currentDetectedFreq != null) genFreqInput.value = currentDetectedFreq.toFixed(1);
-  });
+    // --- FREKANS ÜRETİCİ (Test) ---
+    async function toggleGenerator() {
+        const btn = document.getElementById('btnGenPlay');
+        
+        if (genOsc) {
+            // Durdur
+            genOsc.stop();
+            genOsc.disconnect();
+            genGain.disconnect();
+            genOsc = null;
+            btn.innerHTML = '▶️ Çal';
+            btn.classList.remove('danger');
+        } else {
+            // Başlat
+            await initAudio();
+            const hz = parseFloat(document.getElementById('genHz').value);
+            const type = document.getElementById('genType').value;
+            const vol = parseFloat(document.getElementById('genVol').value) / 100;
 
-  // ---------- Dosya Analizi ----------
-  let selectedFile = null;
+            genOsc = audioCtx.createOscillator();
+            genGain = audioCtx.createGain();
+            
+            genOsc.type = type;
+            genOsc.frequency.value = hz;
+            genGain.gain.value = vol;
 
-  audioFileInput.addEventListener('change', function(){
-    selectedFile = audioFileInput.files && audioFileInput.files[0] ? audioFileInput.files[0] : null;
-    fileNameLabelEl.textContent = selectedFile ? ('SECILEN: ' + selectedFile.name) : '';
-    analyzeFileBtn.disabled = !selectedFile;
-    fileResultEl.textContent = '';
-  });
-
-  function analyzeBufferDominantFreq(audioBuf){
-    const sampleRate = audioBuf.sampleRate;
-    let data;
-    if (audioBuf.numberOfChannels > 1){
-      const ch0 = audioBuf.getChannelData(0), ch1 = audioBuf.getChannelData(1);
-      data = new Float32Array(ch0.length);
-      for (let i = 0; i < ch0.length; i++) data[i] = (ch0[i] + ch1[i]) / 2;
-    } else {
-      data = audioBuf.getChannelData(0);
+            genOsc.connect(genGain);
+            
+            // Hem hoparlöre hem de analize gönder ki grafikte görelim
+            genGain.connect(analyser);
+            genGain.connect(audioCtx.destination);
+            
+            genOsc.start();
+            btn.innerHTML = '⏹️ Durdur';
+            btn.classList.add('danger');
+        }
     }
-    const winSize = 4096;
-    const totalLen = data.length;
-    if (totalLen < winSize){
-      const res = detectPitch(data, sampleRate);
-      if (res.reason !== 'ok') return null;
-      return res.freq;
-    }
-    const numWindows = Math.min(40, Math.max(1, Math.floor(totalLen / winSize)));
-    let best = null;
-    for (let w = 0; w < numWindows; w++){
-      const start = numWindows > 1 ? Math.floor(w * (totalLen - winSize) / (numWindows - 1)) : 0;
-      const seg = data.subarray(start, start + winSize);
-      const res = detectPitch(seg, sampleRate);
-      if (res.reason === 'ok' && (best === null || res.confidence > best.confidence)){
-        best = res;
-      }
-    }
-    if (!best) return null;
-    return best.freq;
-  }
 
-  analyzeFileBtn.addEventListener('click', async function(){
-    if (!selectedFile) return;
-    fileResultEl.textContent = 'ANALIZ EDILIYOR...';
-    analyzeFileBtn.disabled = true;
-    await new Promise(r => setTimeout(r, 30));
-    try{
-      const ctx = ensureAudioContext();
-      const arrBuf = await selectedFile.arrayBuffer();
-      const audioBuf = await ctx.decodeAudioData(arrBuf);
-      const freq = analyzeBufferDominantFreq(audioBuf);
-      if (freq == null){
-        fileResultEl.textContent = 'ERR: DOMINANT FREKANS BULUNAMADI';
-      } else {
-        fileResultEl.textContent = 'SONUC: ' + freq.toFixed(1) + ' HZ';
-      }
-    }catch(err){
-      fileResultEl.textContent = 'ERR: DEKOD HATASI VEYA DESTEKLENMEYEN FORMAT';
-    }finally{
-      analyzeFileBtn.disabled = !selectedFile;
+    function testRecord(hz) {
+        document.getElementById('genHz').value = hz;
+        if (!genOsc) toggleGenerator();
+        else genOsc.frequency.value = hz;
+        
+        window.scrollTo({ top: document.getElementById('genHz').offsetTop - 100, behavior: 'smooth' });
     }
-  });
 
-  renderSaved();
-  setupCanvases();
-})();
+    // --- VERİ YÖNETİMİ VE UI ---
+    function renderRecords() {
+        UI.recordsList.innerHTML = '';
+        if (state.tags.length === 0) {
+            UI.recordsList.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Henüz kayıtlı frekans yok.</p>';
+            return;
+        }
+
+        // Frekansa göre sırala
+        const sortedTags = [...state.tags].sort((a, b) => a.hz - b.hz);
+
+        sortedTags.forEach(tag => {
+            const div = document.createElement('div');
+            div.className = 'record-card';
+            div.innerHTML = `
+                <div class="record-header">
+                    <span class="record-title">${tag.label}</span>
+                    <span class="record-hz">${tag.hz} Hz</span>
+                </div>
+                <div class="record-actions">
+                    <button class="primary" onclick="testRecord(${tag.hz})">▶️ Test Et</button>
+                    <button class="danger" onclick="deleteRecord('${tag.id}')">🗑️ Sil</button>
+                </div>
+            `;
+            UI.recordsList.appendChild(div);
+        });
+    }
+
+    function saveData() {
+        localStorage.setItem('freqTags', JSON.stringify(state.tags));
+        localStorage.setItem('freqSettings', JSON.stringify(state.settings));
+    }
+
+    function loadData() {
+        const savedTags = localStorage.getItem('freqTags');
+        const savedSettings = localStorage.getItem('freqSettings');
+        if (savedTags) state.tags = JSON.parse(savedTags);
+        if (savedSettings) state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+    }
+
+    function clearAllData() {
+        if (confirm("Tüm öğrenilmiş frekanslar ve ayarlar silinecek. Emin misiniz?")) {
+            localStorage.removeItem('freqTags');
+            localStorage.removeItem('freqSettings');
+            state.tags = [];
+            renderRecords();
+            closeSettings();
+        }
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.tags));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", "frekans_kayitlari.json");
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function importData(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const imported = JSON.parse(event.target.result);
+                if (Array.isArray(imported)) {
+                    state.tags = imported;
+                    saveData();
+                    renderRecords();
+                    alert("Kayıtlar başarıyla içe aktarıldı.");
+                    closeSettings();
+                }
+            } catch (err) {
+                alert("Geçersiz dosya formatı.");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Modal işlemleri
+    function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+
+    // Başlat
+    window.addEventListener('DOMContentLoaded', init);
+
 </script>
 </body>
 </html>
