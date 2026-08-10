@@ -199,7 +199,7 @@
 
   <header>
     <h1>FREKANS</h1>
-    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.1_FIXED</p>
+    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.2_AUDIO_FIX</p>
   </header>
 
   <section class="card">
@@ -321,7 +321,6 @@
   let timeDataArray = null, freqDataArray = null;
   let rafId = null;
   
-  // KAYDETME BUTONUNUN GİDİP GELMEMESİ İÇİN HAFIZA (HOLD) DEĞİŞKENLERİ
   let currentDetectedFreq = null;
   let smoothedFreq = null; 
   let lastValidFreq = null;
@@ -336,7 +335,10 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       audioCtx = new AC();
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // iOS için güvenli Context başlatma
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
     return audioCtx;
   }
 
@@ -358,7 +360,6 @@
     secureHintEl.style.opacity = '1';
   }
 
-  // ---------- 200-300 Hz ve Altı İçin Güçlendirilmiş Algoritma ----------
   function detectPitch(buffer, sampleRate){
     const SIZE = buffer.length;
     let sumSq = 0;
@@ -367,7 +368,6 @@
     }
     const rms = Math.sqrt(sumSq / SIZE);
 
-    // HASSASİYET: 200-300 Hz gibi düşük enerjili sesleri alabilmesi için eşik 0.001'e çekildi
     if (rms < 0.001) {
       return { freq: null, confidence: 0, reason: 'silence' };
     }
@@ -411,7 +411,6 @@
     return { freq: freq, confidence: confidence, reason: 'ok' };
   }
 
-  // ---------- Kanvas Kurulumu ----------
   function setupCanvas(canvas){
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
@@ -491,7 +490,6 @@
     }
   }
 
-  // ---------- Mikrofon İşlemleri ----------
   async function startMic(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       setMicStatus('ERR: DONANIM BULUNAMADI', 'error');
@@ -567,7 +565,6 @@
     const result = detectPitch(timeDataArray, audioCtx.sampleRate);
     const now = Date.now();
     
-    // Güvenilirlik eşiği 0.1'e çekildi ki parazitli oda seslerinde bile kilitlenebilsin.
     if (result.reason === 'ok' && result.confidence > 0.1) {
       const rawFreq = result.freq;
       
@@ -578,20 +575,18 @@
       }
 
       currentDetectedFreq = smoothedFreq;
-      lastValidFreq = smoothedFreq; // Son geçerli frekansı hafızaya al
-      holdTimer = now; // Zamanlayıcıyı sıfırla
+      lastValidFreq = smoothedFreq; 
+      holdTimer = now; 
 
       freqNumberEl.textContent = smoothedFreq.toFixed(1);
       freqStatusEl.textContent = 'SES ALGILANDI';
       confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence * 100);
       
     } else {
-      // 1500ms (1.5 saniye) boyunca son geçerli değeri ekranda tut ve butonu aktif bırak!
       if (now - holdTimer < 1500 && lastValidFreq !== null) {
         currentDetectedFreq = lastValidFreq; 
-        freqStatusEl.textContent = 'BEKLEMEDE...'; // Kullanıcıya saniyelik koptuğunu ama butonu basabileceğini göster
+        freqStatusEl.textContent = 'BEKLEMEDE...'; 
       } else {
-        // Ancak 1.5 saniye tam sessizlik olursa her şeyi sıfırla
         freqNumberEl.textContent = '0.0';
         freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
         confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
@@ -601,7 +596,6 @@
       }
     }
 
-    // Butonların yanıp sönmesini engelleyen kısım: 'currentDetectedFreq' 1.5 sn boyunca dolu kalır.
     const canSave = currentDetectedFreq !== null;
     useDetectedBtn.disabled = !canSave;
     saveFreqBtn.disabled = !canSave;
@@ -705,22 +699,30 @@
     }
   });
 
-  // ---------- Frekans Üretici ----------
+  // ---------- GÜNCELLENMİŞ FREKANS ÜRETİCİ (APPLE/SAFARİ UYUMLU) ----------
   function startGen(freq){
     const ctx = ensureAudioContext();
     stopGen();
+    
     genGain = ctx.createGain();
-    genGain.gain.value = Number(volumeSlider.value) / 100;
+    // iOS uyumluluğu için .value yerine setValueAtTime kullanıldı
+    genGain.gain.setValueAtTime(Number(volumeSlider.value) / 100, ctx.currentTime);
+    
     genOscillator = ctx.createOscillator();
     genOscillator.type = 'sine';
-    genOscillator.frequency.value = freq;
-    genOscillator.connect(genGain).connect(ctx.destination);
+    genOscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+    
+    // Apple uyumluluğu: Zincirleme connect iptal edilip tek tek bağlandı
+    genOscillator.connect(genGain);
+    genGain.connect(ctx.destination);
+    
     genOscillator.start();
     genPlayBtn.disabled = true;
     genStopBtn.disabled = false;
     genStatusEl.textContent = freq.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
     genStatusEl.classList.add('playing');
   }
+  
   function stopGen(){
     if (genOscillator){
       try{ genOscillator.stop(); }catch(e){}
@@ -752,7 +754,7 @@
     if (genOscillator){
       const f = parseFloat(genFreqInput.value);
       if (f && f > 0 && isFinite(f)){
-        genOscillator.frequency.value = f;
+        genOscillator.frequency.setValueAtTime(f, ensureAudioContext().currentTime);
         genStatusEl.textContent = f.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
       }
     }
@@ -760,7 +762,9 @@
 
   volumeSlider.addEventListener('input', function(){
     volumeValueEl.textContent = volumeSlider.value + '%';
-    if (genGain) genGain.gain.value = Number(volumeSlider.value) / 100;
+    if (genGain) {
+      genGain.gain.setValueAtTime(Number(volumeSlider.value) / 100, ensureAudioContext().currentTime);
+    }
   });
 
   useDetectedBtn.addEventListener('click', function(){
