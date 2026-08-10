@@ -6,145 +6,192 @@
 <title>Frekans — Ses Frekansı Analiz ve Üretim</title>
 <style>
   :root{
-    --bg:#0B0E11;
-    --panel:#12161B;
-    --panel-2:#171D24;
-    --border:#232B33;
-    --text:#E9EEF2;
-    --text-dim:#8B98A5;
-    --teal:#46E0C8;
-    --teal-rgb:70,224,200;
-    --amber:#F2A93B;
-    --amber-rgb:242,169,59;
-    --red:#FF6B6B;
-    --green:#6EE7A0;
+    --bg: #030508;
+    --panel: #090e12;
+    --panel-2: #10171d;
+    --border: #00f0ff;
+    --border-dim: rgba(0, 240, 255, 0.2);
+    --text: #d1f4fa;
+    --text-dim: #628a94;
+    --teal: #00f0ff;
+    --teal-rgb: 0, 240, 255;
+    --amber: #ffb700;
+    --amber-rgb: 255, 183, 0;
+    --red: #ff0055;
+    --green: #00ffaa;
+    --grid: rgba(0, 240, 255, 0.03);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{background:var(--bg);color:var(--text);}
+  html,body{
+    background-color: var(--bg);
+    background-image: 
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 30px 30px;
+    color:var(--text);
+  }
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-family: 'Consolas', 'Courier New', 'SF Mono', ui-monospace, monospace;
+    text-transform: uppercase;
     min-height:100vh;
     padding:24px 16px calc(50px + env(safe-area-inset-bottom));
     -webkit-tap-highlight-color:transparent;
   }
-  .container{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
-  header{padding:4px 4px 8px;}
+  .container{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+  
+  header{padding:10px 4px 14px; border-bottom: 1px solid var(--border-dim); position: relative;}
+  header::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 40px; height: 3px; background: var(--teal); }
   header h1{
-    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    font-size:28px;letter-spacing:1px;color:var(--text);
+    font-size:32px;letter-spacing:4px;color:var(--teal);
+    text-shadow: 0 0 10px rgba(var(--teal-rgb), 0.5);
   }
-  header p.subtitle{color:var(--text-dim);font-size:14px;margin-top:4px;}
+  header p.subtitle{color:var(--text-dim);font-size:12px;margin-top:6px; letter-spacing: 2px;}
 
   .card{
     background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:20px;
+    border:1px solid var(--border-dim);
     padding:20px;
+    position: relative;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
   }
-  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:12px;font-weight:700;}
+  .card::before, .card::after {
+    content: ''; position: absolute; width: 12px; height: 12px; border: 1px solid var(--teal);
+  }
+  .card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
 
-  /* Buttons */
+  .card h2{font-size:13px; letter-spacing:0.15em; color:var(--teal); margin-bottom:16px; font-weight:normal;}
+  .card h2::before { content: '>'; margin-right: 8px; color: var(--amber); }
+
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    min-height:48px;padding:0 20px;border-radius:14px;border:1px solid transparent;
-    font-size:15px;font-weight:600;cursor:pointer;background:var(--panel-2);color:var(--text);
-    transition:transform .12s ease,opacity .12s ease,border-color .12s ease;
+    min-height:48px;padding:0 20px; border:1px solid var(--border-dim);
+    font-size:14px;font-weight:bold;cursor:pointer;background:var(--panel-2);color:var(--text);
+    transition:all .2s ease;
     user-select:none;
+    font-family: inherit;
+    letter-spacing: 1px;
+    text-transform: inherit;
   }
-  .btn:active{transform:scale(0.97);}
-  .btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
-  .btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
-  .btn-primary{background:var(--teal);color:#04140F;border-color:var(--teal);}
-  .btn-outline{background:transparent;border-color:var(--border);color:var(--text);}
-  .btn-outline:hover{border-color:var(--teal);}
-  .btn-amber{background:var(--amber);color:#2B1B00;border-color:var(--amber);}
-  .btn-danger{background:transparent;border-color:rgba(255,107,107,0.4);color:var(--red);}
-  .btn-small{min-height:38px;padding:0 14px;font-size:13px;border-radius:10px;}
-  @media (prefers-reduced-motion:reduce){.btn{transition:none;}.btn:active{transform:none;}}
+  .btn:active{transform:scale(0.98);}
+  .btn:disabled{opacity:0.3;cursor:not-allowed; border-color: transparent;}
+  .btn:focus-visible{outline:none; box-shadow: 0 0 0 2px var(--teal);}
+  
+  .btn-primary{background:rgba(var(--teal-rgb), 0.1);color:var(--teal);border-color:var(--teal);}
+  .btn-primary:not(:disabled):hover{background:var(--teal);color:#000; box-shadow: 0 0 15px rgba(var(--teal-rgb), 0.6);}
+  
+  .btn-outline{background:transparent;border-color:var(--border-dim);color:var(--text-dim);}
+  .btn-outline:not(:disabled):hover{border-color:var(--teal);color:var(--teal);}
+  
+  .btn-amber{background:rgba(var(--amber-rgb), 0.1);color:var(--amber);border-color:var(--amber);}
+  .btn-amber:not(:disabled):hover{background:var(--amber);color:#000; box-shadow: 0 0 15px rgba(var(--amber-rgb), 0.6);}
+  
+  .btn-danger{background:transparent;border-color:rgba(255,0,85,0.4);color:var(--red);}
+  .btn-danger:hover{background:var(--red); color:#000; border-color:var(--red); box-shadow: 0 0 15px var(--red);}
+  
+  .btn-small{min-height:34px;padding:0 12px;font-size:12px;}
 
-  /* Mic card */
-  .mic-controls{display:flex;flex-wrap:wrap;gap:10px;}
+  input[type=text], input[type=number] {
+    background: var(--panel-2);
+    border: 1px solid var(--border-dim);
+    color: var(--teal);
+    font-family: inherit;
+    font-size: 16px;
+    padding: 0 16px;
+    outline: none;
+    transition: all 0.2s;
+    text-transform: inherit;
+  }
+  input[type=text]:focus, input[type=number]:focus {
+    border-color: var(--teal);
+    box-shadow: inset 0 0 10px rgba(var(--teal-rgb), 0.2);
+  }
+
+  .mic-controls{display:flex;flex-wrap:wrap;gap:12px;}
   .mic-controls .btn{flex:1 1 160px;}
-  .status-msg{margin-top:12px;font-size:14px;color:var(--text-dim);}
+  .status-msg{margin-top:14px;font-size:12px;color:var(--text-dim); letter-spacing: 1px;}
+  .status-msg::before { content: '[ '; color: var(--border-dim); }
+  .status-msg::after { content: ' ]'; color: var(--border-dim); }
   .status-msg.ok{color:var(--green);}
   .status-msg.error{color:var(--red);}
-  .hint{margin-top:10px;font-size:12px;color:var(--text-dim);line-height:1.5;opacity:0.85;}
+  .hint{margin-top:12px;font-size:11px;color:var(--text-dim);line-height:1.6; opacity:0.7;}
 
-  /* Frequency display */
-  .freq-display{text-align:center;transition:border-color .3s ease;}
-  .freq-readout{display:flex;align-items:baseline;justify-content:center;gap:8px;}
+  .freq-display{text-align:center;transition:border-color .3s ease, box-shadow .3s ease;}
+  .freq-readout{display:flex;align-items:baseline;justify-content:center;gap:12px;}
   .freq-number{
-    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    font-size:clamp(52px,15vw,92px);font-weight:700;color:var(--teal);
-    text-shadow:0 0 20px rgba(var(--teal-rgb),0.35),0 0 46px rgba(var(--teal-rgb),0.18);
-    letter-spacing:-2px;line-height:1;
+    font-size:clamp(52px,15vw,84px);
+    color:var(--teal);
+    text-shadow:0 0 15px rgba(var(--teal-rgb),0.6), 0 0 30px rgba(var(--teal-rgb),0.2);
+    letter-spacing: -2px; line-height: 1;
   }
-  .freq-unit{font-size:22px;color:var(--text-dim);font-weight:600;}
-  .freq-caption{margin-top:10px;color:var(--text-dim);font-size:13px;text-transform:uppercase;letter-spacing:0.08em;}
-  .freq-status{margin-top:6px;min-height:18px;font-size:14px;color:var(--amber);}
-  .confidence-label{margin-top:4px;font-size:13px;color:var(--text-dim);}
-  .freq-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px;}
-  @keyframes pulseGlow{
-    0%,100%{box-shadow:0 0 0 rgba(var(--teal-rgb),0);}
-    50%{box-shadow:0 0 26px rgba(var(--teal-rgb),0.22);}
-  }
-  @media (prefers-reduced-motion:no-preference){
-    .freq-display.is-listening{animation:pulseGlow 2.6s ease-in-out infinite;border-color:rgba(var(--teal-rgb),0.5);}
-  }
-  @media (prefers-reduced-motion:reduce){
-    .freq-display.is-listening{border-color:rgba(var(--teal-rgb),0.5);}
-  }
+  .freq-unit{font-size:24px;color:var(--amber); letter-spacing: 2px;}
+  .freq-caption{margin-top:14px;color:var(--text-dim);font-size:12px;letter-spacing:0.15em;}
+  .freq-status{margin-top:8px;min-height:16px;font-size:12px;color:var(--amber);}
+  .confidence-label{margin-top:4px;font-size:12px;color:var(--text-dim);}
+  
+  .freq-actions{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:24px;}
+  .save-name-input { grid-column: 1 / -1; min-height: 48px; text-align: center; font-size: 14px !important; letter-spacing: 2px;}
+  .freq-actions .btn { grid-column: span 1; }
+  @media (max-width: 400px) { .freq-actions .btn { grid-column: 1 / -1; } }
 
-  /* Level meter */
-  .level-bar-track{background:var(--panel-2);border-radius:8px;overflow:hidden;height:14px;border:1px solid var(--border);}
-  .level-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--teal),var(--amber));transition:width .08s linear;}
-  .level-percent{margin-top:8px;font-size:13px;color:var(--text-dim);text-align:right;}
+  @keyframes scanGlow{
+    0%,100%{box-shadow:inset 0 0 20px rgba(0,0,0,0.5), 0 0 0 rgba(var(--teal-rgb),0);}
+    50%{box-shadow:inset 0 0 20px rgba(0,0,0,0.5), 0 0 20px rgba(var(--teal-rgb),0.3);}
+  }
+  .freq-display.is-listening{animation:scanGlow 2s infinite; border-color:var(--teal);}
 
-  /* Graphs */
-  canvas{width:100%;display:block;background:var(--panel-2);border-radius:12px;border:1px solid var(--border);}
+  .level-bar-track{background:var(--panel-2);overflow:hidden;height:12px;border:1px solid var(--border-dim); position:relative;}
+  .level-bar-track::after {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent, transparent 4px, var(--panel) 4px, var(--panel) 5px);
+  }
+  .level-bar-fill{height:100%;width:0%;background:var(--teal);transition:width .1s linear; box-shadow: 0 0 10px var(--teal);}
+  .level-percent{margin-top:10px;font-size:12px;color:var(--text-dim);text-align:right;}
+
+  canvas{width:100%;display:block;background:var(--panel-2);border:1px solid var(--border-dim);}
   #waveCanvas{height:100px;}
-  #specCanvas{height:130px;margin-top:6px;}
+  #specCanvas{height:130px;margin-top:10px;}
 
-  /* Saved list */
-  .saved-list{display:flex;flex-direction:column;gap:10px;}
-  .empty-msg{color:var(--text-dim);font-size:14px;padding:8px 0;}
+  .saved-list{display:flex;flex-direction:column;gap:12px;}
+  .empty-msg{color:var(--text-dim);font-size:12px;padding:8px 0; font-style: italic;}
   .saved-item{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-    background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    background:var(--panel-2);border:1px solid var(--border-dim);padding:14px;
+    border-left: 3px solid var(--teal);
   }
-  .saved-info{display:flex;flex-direction:column;gap:2px;}
-  .saved-freq{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:18px;font-weight:700;color:var(--teal);}
-  .saved-date{font-size:12px;color:var(--text-dim);}
+  .saved-info{display:flex;flex-direction:column;gap:6px;}
+  .saved-name{font-size:14px; font-weight:bold; color:var(--text); letter-spacing: 1px;}
+  .saved-freq{font-size:18px;color:var(--teal); text-shadow: 0 0 8px rgba(var(--teal-rgb), 0.4);}
+  .saved-date{font-size:10px;color:var(--text-dim); letter-spacing: 1px;}
   .saved-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
-  /* Generator */
-  .gen-input-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-  .gen-input-row input[type=number]{
-    flex:1;min-height:48px;padding:0 16px;border-radius:14px;border:1px solid var(--border);
-    background:var(--panel-2);color:var(--text);font-size:20px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  }
-  .gen-input-row input[type=number]:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
-  .gen-input-row span{color:var(--text-dim);font-weight:600;}
-  .gen-controls{display:flex;flex-wrap:wrap;gap:10px;}
+  .gen-input-row{display:flex;align-items:stretch;gap:12px;margin-bottom:16px;}
+  .gen-input-row input[type=number]{ flex:1; min-height:48px; font-size:24px; color:var(--amber); text-shadow: 0 0 10px rgba(var(--amber-rgb), 0.3);}
+  .gen-input-row input[type=number]:focus { border-color: var(--amber); box-shadow: inset 0 0 10px rgba(var(--amber-rgb), 0.1); }
+  .gen-input-row span{display:flex; align-items:center; color:var(--text-dim); font-size: 14px;}
+  
+  .gen-controls{display:flex;flex-wrap:wrap;gap:12px;}
   .gen-controls .btn{flex:1 1 160px;}
-  #genStatus{margin-top:12px;font-size:14px;color:var(--text-dim);}
-  #genStatus.playing{color:var(--amber);}
-  .volume-row{margin-top:16px;display:flex;align-items:center;gap:12px;}
-  .volume-row label{font-size:13px;color:var(--text-dim);flex:0 0 auto;}
-  .volume-row input[type=range]{flex:1;accent-color:var(--amber);}
-  .volume-row span{font-size:13px;color:var(--text-dim);min-width:38px;text-align:right;}
+  #genStatus{margin-top:14px;font-size:12px;color:var(--text-dim); letter-spacing: 1px;}
+  #genStatus.playing{color:var(--amber); text-shadow: 0 0 5px rgba(var(--amber-rgb), 0.5);}
+  
+  .volume-row{margin-top:20px;display:flex;align-items:center;gap:16px; background:var(--panel-2); padding: 12px; border: 1px solid var(--border-dim);}
+  .volume-row label{font-size:11px;color:var(--text-dim);flex:0 0 auto;}
+  .volume-row input[type=range]{flex:1;accent-color:var(--amber); height: 2px; background: var(--border-dim); -webkit-appearance: none; outline: none;}
+  .volume-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--amber); cursor: pointer; border-radius: 0;}
+  .volume-row span{font-size:12px;color:var(--amber);min-width:40px;text-align:right;}
 
-  /* File analysis */
   .file-picker-btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;
-    border-radius:14px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);
-    font-size:15px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;min-height:48px;
+    border:1px dashed var(--border-dim);background:var(--panel-2);color:var(--text);
+    font-size:14px;cursor:pointer; transition: all 0.2s; letter-spacing: 1px;
   }
-  .file-name{margin-top:10px;font-size:13px;color:var(--text-dim);word-break:break-all;}
-  #analyzeFileBtn{margin-top:12px;width:100%;}
-  .file-result{margin-top:12px;font-size:15px;font-weight:600;color:var(--teal);min-height:20px;}
+  .file-picker-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(var(--teal-rgb), 0.05); }
+  .file-name{margin-top:12px;font-size:11px;color:var(--amber);word-break:break-all;}
+  #analyzeFileBtn{margin-top:14px;width:100%;}
+  .file-result{margin-top:14px;font-size:14px;color:var(--teal);min-height:20px; text-shadow: 0 0 8px rgba(var(--teal-rgb), 0.4);}
 
-  footer{text-align:center;color:var(--text-dim);font-size:12px;padding:8px 4px 0;}
+  footer{text-align:center;color:var(--text-dim);font-size:10px;padding:12px 4px 0; letter-spacing: 1px;}
 </style>
 </head>
 <body>
@@ -152,68 +199,70 @@
 
   <header>
     <h1>FREKANS</h1>
-    <p class="subtitle">Ses Frekansı Analiz ve Üretim Aracı</p>
+    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V2.0</p>
   </header>
 
   <!-- Mikrofon -->
   <section class="card">
+    <h2>Sistem Girisi</h2>
     <div class="mic-controls">
-      <button id="micStartBtn" class="btn btn-primary">🎙️ Mikrofonu Başlat</button>
-      <button id="micStopBtn" class="btn btn-outline" disabled>⏹ Mikrofonu Durdur</button>
+      <button id="micStartBtn" class="btn btn-primary">MIKROFONU BASLAT</button>
+      <button id="micStopBtn" class="btn btn-outline" disabled>MIKROFONU DURDUR</button>
     </div>
-    <p id="micStatus" class="status-msg">Mikrofon kapalı</p>
-    <p class="hint" id="secureHint">Not: Mikrofon erişimi için bu sayfanın https:// veya http://localhost üzerinden açılması gerekir. Dosyayı doğrudan çift tıklayarak açmak (file://) özellikle iPhone Safari'de mikrofonun çalışmasını engelleyebilir.</p>
+    <p id="micStatus" class="status-msg">SISTEM BEKLEMEDE</p>
+    <p class="hint" id="secureHint">SEC_WARN: Sistem erisimi icin HTTPS veya Localhost protokolleri zorunludur. (file:// engellendi)</p>
   </section>
 
   <!-- Ana frekans göstergesi -->
   <section class="card freq-display" id="freqDisplayCard">
     <div class="freq-readout">
-      <span id="freqNumber" class="freq-number">—</span><span class="freq-unit">Hz</span>
+      <span id="freqNumber" class="freq-number">0.0</span><span class="freq-unit">HZ</span>
     </div>
-    <p class="freq-caption">Algılanan Frekans</p>
+    <p class="freq-caption">CANLI VERI AKISI</p>
     <p id="freqStatus" class="freq-status"></p>
-    <p id="confidenceLabel" class="confidence-label">Güven: —</p>
+    <p id="confidenceLabel" class="confidence-label">VERI DOGRULUGU: %0</p>
     <div class="freq-actions">
-      <button id="useDetectedBtn" class="btn btn-outline" disabled>↔ Algılanan Frekansı Kullan</button>
-      <button id="saveFreqBtn" class="btn btn-primary" disabled>💾 Frekansı Kaydet</button>
+      <input type="text" id="saveNameInput" class="save-name-input" placeholder="KAYIT ADI GIRINIZ..." autocomplete="off">
+      <button id="useDetectedBtn" class="btn btn-outline" disabled>JENERATORE AKTAR</button>
+      <button id="saveFreqBtn" class="btn btn-primary" disabled>BELLEGE KAYDET</button>
     </div>
   </section>
 
   <!-- Sinyal seviyesi -->
   <section class="card">
-    <h2>Sinyal Seviyesi</h2>
+    <h2>Sinyal Gucu</h2>
     <div class="level-bar-track"><div id="levelBarFill" class="level-bar-fill"></div></div>
     <p id="levelPercent" class="level-percent">0%</p>
   </section>
 
   <!-- Grafikler -->
   <section class="card">
-    <h2>Ses Dalgası</h2>
+    <h2>Osilaskop [Waveform]</h2>
     <canvas id="waveCanvas"></canvas>
-    <h2 style="margin-top:18px;">Frekans Spektrumu</h2>
+    <h2 style="margin-top:24px;">Spektrum [FFT]</h2>
     <canvas id="specCanvas"></canvas>
   </section>
 
   <!-- Kayıtlı frekanslar -->
   <section class="card">
-    <h2>Kaydedilen Frekanslar</h2>
+    <h2>Yerel Bellek</h2>
     <div id="savedList" class="saved-list"></div>
   </section>
 
   <!-- Frekans üretici -->
   <section class="card">
-    <h2>Frekans Üretici</h2>
+    <h2>Sinyal Jeneratoru</h2>
     <div class="gen-input-row">
       <input type="number" id="genFreqInput" value="440" min="20" max="20000" step="0.1" inputmode="decimal">
-      <span>Hz</span>
+      <span>HZ</span>
     </div>
     <div class="gen-controls">
-      <button id="genPlayBtn" class="btn btn-amber">▶️ Sesi Çal</button>
-      <button id="genStopBtn" class="btn btn-outline" disabled>⏹ Sesi Durdur</button>
+      <button id="genPlayBtn" class="btn btn-amber">SINYALI BASLAT</button>
+      <button id="genStopBtn" class="btn btn-outline" disabled>SINYALI KES</button>
     </div>
-    <p id="genStatus">Durduruldu</p>
+    <p id="genStatus">JENERATOR PASIF</p>
     <div class="volume-row">
-      <label for="volumeSlider">Ses Seviyesi</label>
+      <label for="volumeSlider">AMPLITUDE</label>
       <input type="range" id="volumeSlider" min="0" max="100" value="25">
       <span id="volumeValue">25%</span>
     </div>
@@ -221,16 +270,16 @@
 
   <!-- Ses dosyası analizi -->
   <section class="card">
-    <h2>Ses Dosyası Analizi</h2>
-    <label class="file-picker-btn" for="audioFileInput">📁 Ses Dosyası Seç</label>
+    <h2>Harici Dosya Analizi</h2>
+    <label class="file-picker-btn" for="audioFileInput">[ DOSYA SEC ]</label>
     <input type="file" id="audioFileInput" accept="audio/*" hidden>
     <p id="fileNameLabel" class="file-name"></p>
-    <button id="analyzeFileBtn" class="btn btn-primary" disabled>Frekansı Analiz Et</button>
+    <button id="analyzeFileBtn" class="btn btn-primary" disabled>ANALIZI BASLAT</button>
     <p id="fileResult" class="file-result"></p>
   </section>
 
   <footer>
-    <p>Tüm işlemler cihazınızda gerçekleşir; ses verisi hiçbir sunucuya gönderilmez.</p>
+    <p>VERILER CIHAZ ICINDE ISLENMEKTEDIR. DIS BAGLANTI YOK.</p>
   </footer>
 </div>
 
@@ -250,6 +299,7 @@
   const confidenceLabelEl = document.getElementById('confidenceLabel');
   const useDetectedBtn = document.getElementById('useDetectedBtn');
   const saveFreqBtn = document.getElementById('saveFreqBtn');
+  const saveNameInput = document.getElementById('saveNameInput');
 
   const levelBarFill = document.getElementById('levelBarFill');
   const levelPercentEl = document.getElementById('levelPercent');
@@ -281,7 +331,7 @@
 
   let genOscillator = null, genGain = null;
 
-  const STORAGE_KEY = 'frekans_kayitlari_v1';
+  const STORAGE_KEY = 'frekans_kayitlari_v2';
 
   // ---------- Yardımcılar ----------
   function ensureAudioContext(){
@@ -300,43 +350,37 @@
 
   function fmtDate(ts){
     try{
-      return new Date(ts).toLocaleString('tr-TR', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+      const d = new Date(ts);
+      return d.toLocaleDateString('tr-TR') + ' ' + d.toLocaleTimeString('tr-TR');
     }catch(e){ return ''; }
   }
 
   if (!window.isSecureContext){
-    secureHintEl.textContent = '⚠ Bu sayfa güvenli bir bağlamda (https:// veya localhost) açılmadı. Mikrofon izni büyük olasılıkla çalışmayacak — sayfayı bir sunucu üzerinden (ör. http://localhost) açmayı deneyin.';
+    secureHintEl.textContent = 'ERR: GUYENLI BAGLANTI (HTTPS/LOCALHOST) BULUNAMADI. ERISIM REDDEDILEBILIR.';
     secureHintEl.style.color = 'var(--red)';
     secureHintEl.style.opacity = '1';
   }
 
-  // ---------- Perde/Frekans tespiti (autocorrelation) ----------
+  // ---------- Perde/Frekans tespiti (autocorrelation - ham veriyi doğrudan okuma) ----------
   function detectPitch(buffer, sampleRate){
     const SIZE = buffer.length;
     let rms = 0;
     for (let i=0;i<SIZE;i++){ const v = buffer[i]; rms += v*v; }
     rms = Math.sqrt(rms/SIZE);
-    if (rms < 0.008) return {freq:null, confidence:0, rms:rms, reason:'silence'};
+    
+    // Filtreleme kaldırıldı: çok düşük sinyalleri dahi işlemeye alıyoruz
+    if (rms < 0.0001) return {freq:null, confidence:0, rms:rms, reason:'silence'};
 
-    // Kenarlardaki zayıf bölümleri kırp (kararlı döngüye odaklanmak için)
-    let r1 = 0, r2 = SIZE-1;
-    const thres = 0.2;
-    for (let i=0;i<SIZE/2;i++){ if (Math.abs(buffer[i]) < thres){ r1=i; break; } }
-    for (let i=1;i<SIZE/2;i++){ if (Math.abs(buffer[SIZE-i]) < thres){ r2=SIZE-i; break; } }
-    const trimmed = buffer.slice(r1, r2);
-    const n = trimmed.length;
-    if (n < 8) return {freq:null, confidence:0, rms:rms, reason:'weak'};
-
-    const minFreq = 50, maxFreq = 2000;
-    const maxPeriod = Math.min(n-2, Math.floor(sampleRate/minFreq));
+    const minFreq = 20, maxFreq = 4000;
+    const maxPeriod = Math.min(SIZE-2, Math.floor(sampleRate/minFreq));
     const minPeriod = Math.max(2, Math.floor(sampleRate/maxFreq));
     if (maxPeriod <= minPeriod) return {freq:null, confidence:0, rms:rms, reason:'weak'};
 
     const c = new Float32Array(maxPeriod+2);
     for (let lag=minPeriod; lag<=maxPeriod; lag++){
       let sum = 0;
-      const limit = n - lag;
-      for (let i=0;i<limit;i++) sum += trimmed[i]*trimmed[i+lag];
+      const limit = SIZE - lag;
+      for (let i=0;i<limit;i++) sum += buffer[i]*buffer[i+lag];
       c[lag] = sum;
     }
 
@@ -356,14 +400,12 @@
     const freq = sampleRate / T0;
 
     let energy = 0;
-    for (let i=0;i<n;i++) energy += trimmed[i]*trimmed[i];
+    for (let i=0;i<SIZE;i++) energy += buffer[i]*buffer[i];
     const confidence = energy > 0 ? Math.max(0, Math.min(1, maxVal/energy)) : 0;
 
     return {freq:freq, confidence:confidence, rms:rms, reason:'ok'};
   }
 
-  // Goertzel algoritması: belirli bir hedef frekanstaki enerjiyi tüm FFT'yi
-  // hesaplamadan verimli şekilde ölçer. Oktav hatalarını düzeltmek için kullanılır.
   function goertzelMagnitude(samples, targetFreq, sampleRate){
     const N = samples.length;
     if (targetFreq <= 0 || targetFreq >= sampleRate/2) return 0;
@@ -381,8 +423,6 @@
     return Math.sqrt(real*real + imag*imag);
   }
 
-  // Oktav hatası düzeltmesi: 880 Hz gibi bir sonuç aslında 440 Hz'in
-  // ikinci harmoniği olabilir. Yarı frekansta da güçlü enerji varsa oraya in.
   function correctOctave(freq, samples, sampleRate){
     if (!freq) return freq;
     let f = freq;
@@ -424,14 +464,15 @@
     if (!waveCtx) return;
     const w = waveCanvas.clientWidth, h = waveCanvas.clientHeight;
     waveCtx.clearRect(0,0,w,h);
-    waveCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+    
+    waveCtx.strokeStyle = 'rgba(0, 240, 255, 0.1)';
     waveCtx.lineWidth = 1;
     waveCtx.beginPath();
     waveCtx.moveTo(0,h/2); waveCtx.lineTo(w,h/2); waveCtx.stroke();
 
     waveCtx.beginPath();
     waveCtx.lineWidth = 2;
-    waveCtx.strokeStyle = '#46E0C8';
+    waveCtx.strokeStyle = '#00f0ff';
     const step = data.length / w;
     for (let x=0; x<w; x++){
       const idx = Math.floor(x*step);
@@ -453,18 +494,21 @@
     for (let i=0;i<maxBin;i++){
       const v = freqData[i]/255;
       const barH = v*h;
-      const hue = 168 + v*35;
-      specCtx.fillStyle = 'hsl(' + hue + ',72%,' + (42+v*16) + '%)';
+      const r = Math.floor(v*255);
+      const g = Math.floor(255 - v*100);
+      specCtx.fillStyle = `rgb(${r},${g},0)`;
       specCtx.fillRect(i*barW, h-barH, Math.max(1,barW-0.5), barH);
     }
     if (currentDetectedFreq){
       const x = (currentDetectedFreq/binHz) * barW;
       if (x>=0 && x<=w){
-        specCtx.strokeStyle = '#F2A93B';
-        specCtx.lineWidth = 2;
+        specCtx.strokeStyle = '#00f0ff';
+        specCtx.lineWidth = 1;
+        specCtx.setLineDash([4, 4]);
         specCtx.beginPath();
         specCtx.moveTo(x,0); specCtx.lineTo(x,h);
         specCtx.stroke();
+        specCtx.setLineDash([]);
       }
     }
   }
@@ -472,7 +516,7 @@
   // ---------- Mikrofon ----------
   async function startMic(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      setMicStatus('Bu tarayıcı mikrofon erişimini desteklemiyor.', 'error');
+      setMicStatus('ERR: DONANIM BULUNAMADI', 'error');
       return;
     }
     const ctx = ensureAudioContext();
@@ -481,30 +525,21 @@
         audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
       });
     }catch(err){
-      const name = err && err.name;
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError'){
-        setMicStatus('Mikrofon izni verilmedi. Tarayıcı ayarlarından mikrofon erişimine izin verin.', 'error');
-      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError'){
-        setMicStatus('Mikrofon bulunamadı.', 'error');
-      } else if (name === 'SecurityError'){
-        setMicStatus('Mikrofon erişimi için güvenli bir bağlam (https:// veya localhost) gerekiyor.', 'error');
-      } else {
-        setMicStatus('Mikrofona erişilemedi: ' + (err && err.message ? err.message : 'bilinmeyen hata'), 'error');
-      }
+      setMicStatus('ERR: ERISIM REDDEDILDI VEYA DONANIM YOK.', 'error');
       return;
     }
 
     micSource = ctx.createMediaStreamSource(micStream);
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.3;
+    analyser.smoothingTimeConstant = 0.1; // Tepkime hızlandırıldı
     micSource.connect(analyser);
     timeDataArray = new Float32Array(analyser.fftSize);
     freqDataArray = new Uint8Array(analyser.frequencyBinCount);
 
     micStartBtn.disabled = true;
     micStopBtn.disabled = false;
-    setMicStatus('Mikrofon aktif — ses bekleniyor', 'ok');
+    setMicStatus('SISTEM AKTIF — CANLI AKIS', 'ok');
     freqDisplayCard.classList.add('is-listening');
     loop();
   }
@@ -518,12 +553,12 @@
 
     micStartBtn.disabled = false;
     micStopBtn.disabled = true;
-    setMicStatus('Mikrofon kapalı', '');
+    setMicStatus('SISTEM KAPALI', '');
     freqDisplayCard.classList.remove('is-listening');
 
-    freqNumberEl.textContent = '—';
+    freqNumberEl.textContent = '0.0';
     freqStatusEl.textContent = '';
-    confidenceLabelEl.textContent = 'Güven: —';
+    confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
     useDetectedBtn.disabled = true;
     saveFreqBtn.disabled = true;
     currentDetectedFreq = null;
@@ -547,23 +582,21 @@
     levelPercentEl.textContent = levelPct + '%';
 
     const result = detectPitch(timeDataArray, audioCtx.sampleRate);
-    if (result.reason === 'silence'){
-      freqNumberEl.textContent = '—';
-      freqStatusEl.textContent = 'Ses algılanamadı';
-      confidenceLabelEl.textContent = 'Güven: —';
-      currentDetectedFreq = null;
-    } else if (result.reason !== 'ok' || result.confidence < 0.35){
-      freqNumberEl.textContent = '—';
-      freqStatusEl.textContent = 'Sinyal çok zayıf';
-      confidenceLabelEl.textContent = 'Güven: —';
-      currentDetectedFreq = null;
-    } else {
+    
+    // Filtreleme yapmadan doğrudan ekrana yansıtma
+    if (result.freq && isFinite(result.freq)) {
       const corrected = correctOctave(result.freq, timeDataArray, audioCtx.sampleRate);
       currentDetectedFreq = corrected;
       freqNumberEl.textContent = corrected.toFixed(1);
       freqStatusEl.textContent = '';
-      confidenceLabelEl.textContent = 'Güven: ' + Math.round(result.confidence*100) + '%';
+      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence*100);
+    } else {
+      freqNumberEl.textContent = '0.0';
+      freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
+      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
+      currentDetectedFreq = null;
     }
+
     useDetectedBtn.disabled = currentDetectedFreq == null;
     saveFreqBtn.disabled = currentDetectedFreq == null;
 
@@ -590,7 +623,7 @@
     if (list.length === 0){
       const p = document.createElement('p');
       p.className = 'empty-msg';
-      p.textContent = 'Henüz kayıtlı frekans yok.';
+      p.textContent = 'BELLEK BOS.';
       savedListEl.appendChild(p);
       return;
     }
@@ -601,21 +634,29 @@
 
       const info = document.createElement('div');
       info.className = 'saved-info';
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'saved-name';
+      nameSpan.textContent = rec.name || 'ISIMSIZ KAYIT';
+
       const freqSpan = document.createElement('span');
       freqSpan.className = 'saved-freq';
-      freqSpan.textContent = rec.freq.toFixed(1) + ' Hz';
+      freqSpan.textContent = rec.freq.toFixed(1) + ' HZ';
+      
       const dateSpan = document.createElement('span');
       dateSpan.className = 'saved-date';
       dateSpan.textContent = fmtDate(rec.ts);
+      
+      info.appendChild(nameSpan);
       info.appendChild(freqSpan);
       info.appendChild(dateSpan);
 
       const actions = document.createElement('div');
       actions.className = 'saved-actions';
       actions.innerHTML =
-        '<button data-action="use" class="btn btn-small btn-outline">Kullan</button>' +
-        '<button data-action="play" class="btn btn-small btn-amber">▶ Çal</button>' +
-        '<button data-action="delete" class="btn btn-small btn-danger">Sil</button>';
+        '<button data-action="use" class="btn btn-small btn-outline">AKTAR</button>' +
+        '<button data-action="play" class="btn btn-small btn-amber">CAL</button>' +
+        '<button data-action="delete" class="btn btn-small btn-danger">SIL</button>';
 
       item.appendChild(info);
       item.appendChild(actions);
@@ -626,9 +667,15 @@
   saveFreqBtn.addEventListener('click', function(){
     if (currentDetectedFreq == null) return;
     const list = loadSaved();
-    list.unshift({ id: Date.now(), freq: currentDetectedFreq, ts: Date.now() });
+    
+    let recordName = saveNameInput.value.trim();
+    if (!recordName) recordName = 'DATA_' + Math.floor(Math.random() * 9000 + 1000);
+
+    list.unshift({ id: Date.now(), freq: currentDetectedFreq, name: recordName, ts: Date.now() });
     persistSaved(list);
     renderSaved();
+    
+    saveNameInput.value = '';
   });
 
   savedListEl.addEventListener('click', function(e){
@@ -665,7 +712,7 @@
     genOscillator.start();
     genPlayBtn.disabled = true;
     genStopBtn.disabled = false;
-    genStatusEl.textContent = freq.toFixed(1) + ' Hz — Çalıyor';
+    genStatusEl.textContent = freq.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
     genStatusEl.classList.add('playing');
   }
   function stopGen(){
@@ -680,14 +727,14 @@
     }
     genPlayBtn.disabled = false;
     genStopBtn.disabled = true;
-    genStatusEl.textContent = 'Durduruldu';
+    genStatusEl.textContent = 'JENERATOR PASIF';
     genStatusEl.classList.remove('playing');
   }
 
   genPlayBtn.addEventListener('click', function(){
     const f = parseFloat(genFreqInput.value);
     if (!f || f <= 0 || !isFinite(f)){
-      genStatusEl.textContent = 'Geçerli bir frekans girin.';
+      genStatusEl.textContent = 'ERR: GECERSIZ DEGER';
       genStatusEl.classList.remove('playing');
       return;
     }
@@ -700,7 +747,7 @@
       const f = parseFloat(genFreqInput.value);
       if (f && f>0 && isFinite(f)){
         genOscillator.frequency.value = f;
-        genStatusEl.textContent = f.toFixed(1) + ' Hz — Çalıyor';
+        genStatusEl.textContent = f.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
       }
     }
   });
@@ -719,7 +766,7 @@
 
   audioFileInput.addEventListener('change', function(){
     selectedFile = audioFileInput.files && audioFileInput.files[0] ? audioFileInput.files[0] : null;
-    fileNameLabelEl.textContent = selectedFile ? ('Dosya: ' + selectedFile.name) : '';
+    fileNameLabelEl.textContent = selectedFile ? ('SECILEN: ' + selectedFile.name) : '';
     analyzeFileBtn.disabled = !selectedFile;
     fileResultEl.textContent = '';
   });
@@ -757,7 +804,7 @@
 
   analyzeFileBtn.addEventListener('click', async function(){
     if (!selectedFile) return;
-    fileResultEl.textContent = 'Analiz ediliyor...';
+    fileResultEl.textContent = 'ANALIZ EDILIYOR...';
     analyzeFileBtn.disabled = true;
     await new Promise(function(r){ setTimeout(r, 30); });
     try{
@@ -766,12 +813,12 @@
       const audioBuf = await ctx.decodeAudioData(arrBuf);
       const freq = analyzeBufferDominantFreq(audioBuf);
       if (freq == null){
-        fileResultEl.textContent = 'Belirgin bir frekans tespit edilemedi.';
+        fileResultEl.textContent = 'ERR: DOMINANT FREKANS BULUNAMADI';
       } else {
-        fileResultEl.textContent = 'Algılanan Frekans: ' + freq.toFixed(1) + ' Hz';
+        fileResultEl.textContent = 'SONUC: ' + freq.toFixed(1) + ' HZ';
       }
     }catch(err){
-      fileResultEl.textContent = 'Ses dosyası okunamadı veya desteklenmeyen format.';
+      fileResultEl.textContent = 'ERR: DEKOD HATASI VEYA DESTEKLENMEYEN FORMAT';
     }finally{
       analyzeFileBtn.disabled = !selectedFile;
     }
