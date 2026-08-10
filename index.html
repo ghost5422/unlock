@@ -74,7 +74,7 @@
     text-transform: inherit;
   }
   .btn:active{transform:scale(0.98);}
-  .btn:disabled{opacity:0.3;cursor:not-allowed; border-color: transparent;}
+  .btn:disabled{opacity:0.2;cursor:not-allowed; border-color: transparent;}
   .btn:focus-visible{outline:none; box-shadow: 0 0 0 2px var(--teal);}
   
   .btn-primary{background:rgba(var(--teal-rgb), 0.1);color:var(--teal);border-color:var(--teal);}
@@ -199,10 +199,9 @@
 
   <header>
     <h1>FREKANS</h1>
-    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.0_STABLE</p>
+    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.1_FIXED</p>
   </header>
 
-  <!-- Mikrofon -->
   <section class="card">
     <h2>Sistem Girisi</h2>
     <div class="mic-controls">
@@ -210,10 +209,9 @@
       <button id="micStopBtn" class="btn btn-outline" disabled>MIKROFONU DURDUR</button>
     </div>
     <p id="micStatus" class="status-msg">SISTEM BEKLEMEDE</p>
-    <p class="hint" id="secureHint">SEC_WARN: Sistem erisimi icin HTTPS veya Localhost protokolleri zorunludur. (file:// engellendi)</p>
+    <p class="hint" id="secureHint">SEC_WARN: Sistem erisimi icin HTTPS veya Localhost protokolleri zorunludur.</p>
   </section>
 
-  <!-- Ana frekans göstergesi -->
   <section class="card freq-display" id="freqDisplayCard">
     <div class="freq-readout">
       <span id="freqNumber" class="freq-number">0.0</span><span class="freq-unit">HZ</span>
@@ -228,14 +226,12 @@
     </div>
   </section>
 
-  <!-- Sinyal seviyesi -->
   <section class="card">
     <h2>Sinyal Gucu</h2>
     <div class="level-bar-track"><div id="levelBarFill" class="level-bar-fill"></div></div>
     <p id="levelPercent" class="level-percent">0%</p>
   </section>
 
-  <!-- Grafikler -->
   <section class="card">
     <h2>Osilaskop [Waveform]</h2>
     <canvas id="waveCanvas"></canvas>
@@ -243,13 +239,11 @@
     <canvas id="specCanvas"></canvas>
   </section>
 
-  <!-- Kayıtlı frekanslar -->
   <section class="card">
     <h2>Yerel Bellek</h2>
     <div id="savedList" class="saved-list"></div>
   </section>
 
-  <!-- Frekans üretici -->
   <section class="card">
     <h2>Sinyal Jeneratoru</h2>
     <div class="gen-input-row">
@@ -268,7 +262,6 @@
     </div>
   </section>
 
-  <!-- Ses dosyası analizi -->
   <section class="card">
     <h2>Harici Dosya Analizi</h2>
     <label class="file-picker-btn" for="audioFileInput">[ DOSYA SEC ]</label>
@@ -327,14 +320,17 @@
   let micStream = null, micSource = null, analyser = null;
   let timeDataArray = null, freqDataArray = null;
   let rafId = null;
+  
+  // KAYDETME BUTONUNUN GİDİP GELMEMESİ İÇİN HAFIZA (HOLD) DEĞİŞKENLERİ
   let currentDetectedFreq = null;
-  let smoothedFreq = null; // Ekrandaki sıçramayı önleyen filtreleme değişkeni
+  let smoothedFreq = null; 
+  let lastValidFreq = null;
+  let holdTimer = 0;
 
   let genOscillator = null, genGain = null;
 
-  const STORAGE_KEY = 'frekans_kayitlari_v3';
+  const STORAGE_KEY = 'frekans_kayitlari_v4';
 
-  // ---------- Yardımcılar ----------
   function ensureAudioContext(){
     if (!audioCtx){
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -362,18 +358,17 @@
     secureHintEl.style.opacity = '1';
   }
 
-  // ---------- Hassas & Stabil Otokorelasyon Algoritması ----------
+  // ---------- 200-300 Hz ve Altı İçin Güçlendirilmiş Algoritma ----------
   function detectPitch(buffer, sampleRate){
     const SIZE = buffer.length;
     let sumSq = 0;
     for (let i = 0; i < SIZE; i++) {
-      const v = buffer[i];
-      sumSq += v * v;
+      sumSq += buffer[i] * buffer[i];
     }
     const rms = Math.sqrt(sumSq / SIZE);
 
-    // Dip ses / Sessizlik Eşiği (Ortam gürültüsünü süzer)
-    if (rms < 0.005) {
+    // HASSASİYET: 200-300 Hz gibi düşük enerjili sesleri alabilmesi için eşik 0.001'e çekildi
+    if (rms < 0.001) {
       return { freq: null, confidence: 0, reason: 'silence' };
     }
 
@@ -400,11 +395,8 @@
       }
     }
 
-    if (maxPos < 0 || maxVal <= 0) {
-      return { freq: null, confidence: 0, reason: 'noisy' };
-    }
+    if (maxPos < 0 || maxVal <= 0) return { freq: null, confidence: 0, reason: 'noisy' };
 
-    // Parabolik İnterpolasyon (Alt-Hz seviyesinde tam hassasiyet)
     let T0 = maxPos;
     if (maxPos > minPeriod && maxPos < maxPeriod) {
       const x1 = c[maxPos - 1], x2 = c[maxPos], x3 = c[maxPos + 1];
@@ -545,10 +537,14 @@
     freqNumberEl.textContent = '0.0';
     freqStatusEl.textContent = '';
     confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
+    
     useDetectedBtn.disabled = true;
     saveFreqBtn.disabled = true;
+    
     currentDetectedFreq = null;
     smoothedFreq = null;
+    lastValidFreq = null;
+    holdTimer = 0;
 
     levelBarFill.style.width = '0%';
     levelPercentEl.textContent = '0%';
@@ -562,38 +558,53 @@
     analyser.getByteFrequencyData(freqDataArray);
 
     let sum = 0;
-    for (let i = 0; i < timeDataArray.length; i++){ const v = timeDataArray[i]; sum += v * v; }
+    for (let i = 0; i < timeDataArray.length; i++){ sum += timeDataArray[i] * timeDataArray[i]; }
     const rms = Math.sqrt(sum / timeDataArray.length);
     const levelPct = Math.max(0, Math.min(100, Math.round(rms * 350)));
     levelBarFill.style.width = levelPct + '%';
     levelPercentEl.textContent = levelPct + '%';
 
     const result = detectPitch(timeDataArray, audioCtx.sampleRate);
+    const now = Date.now();
     
-    if (result.reason === 'ok' && result.confidence > 0.2) {
+    // Güvenilirlik eşiği 0.1'e çekildi ki parazitli oda seslerinde bile kilitlenebilsin.
+    if (result.reason === 'ok' && result.confidence > 0.1) {
       const rawFreq = result.freq;
       
-      // Yumuşatma Filtresi (Sayıların ekranda gözü yormadan yumuşakça akmasını sağlar)
       if (smoothedFreq === null) {
         smoothedFreq = rawFreq;
       } else {
-        smoothedFreq = smoothedFreq * 0.7 + rawFreq * 0.3;
+        smoothedFreq = smoothedFreq * 0.5 + rawFreq * 0.5;
       }
 
       currentDetectedFreq = smoothedFreq;
+      lastValidFreq = smoothedFreq; // Son geçerli frekansı hafızaya al
+      holdTimer = now; // Zamanlayıcıyı sıfırla
+
       freqNumberEl.textContent = smoothedFreq.toFixed(1);
       freqStatusEl.textContent = 'SES ALGILANDI';
       confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence * 100);
+      
     } else {
-      freqNumberEl.textContent = '0.0';
-      freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
-      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
-      currentDetectedFreq = null;
-      smoothedFreq = null;
+      // 1500ms (1.5 saniye) boyunca son geçerli değeri ekranda tut ve butonu aktif bırak!
+      if (now - holdTimer < 1500 && lastValidFreq !== null) {
+        currentDetectedFreq = lastValidFreq; 
+        freqStatusEl.textContent = 'BEKLEMEDE...'; // Kullanıcıya saniyelik koptuğunu ama butonu basabileceğini göster
+      } else {
+        // Ancak 1.5 saniye tam sessizlik olursa her şeyi sıfırla
+        freqNumberEl.textContent = '0.0';
+        freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
+        confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
+        currentDetectedFreq = null;
+        smoothedFreq = null;
+        lastValidFreq = null;
+      }
     }
 
-    useDetectedBtn.disabled = currentDetectedFreq == null;
-    saveFreqBtn.disabled = currentDetectedFreq == null;
+    // Butonların yanıp sönmesini engelleyen kısım: 'currentDetectedFreq' 1.5 sn boyunca dolu kalır.
+    const canSave = currentDetectedFreq !== null;
+    useDetectedBtn.disabled = !canSave;
+    saveFreqBtn.disabled = !canSave;
 
     drawWave(timeDataArray);
     drawSpectrum(freqDataArray, audioCtx.sampleRate, analyser.fftSize);
@@ -819,7 +830,6 @@
     }
   });
 
-  // ---------- Başlangıç ----------
   renderSaved();
   setupCanvases();
 })();
