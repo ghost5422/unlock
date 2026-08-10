@@ -199,7 +199,7 @@
 
   <header>
     <h1>FREKANS</h1>
-    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V2.0</p>
+    <p class="subtitle">SYS.AUDIO.ANALYSIS_GEN // V3.0_STABLE</p>
   </header>
 
   <!-- Mikrofon -->
@@ -328,10 +328,11 @@
   let timeDataArray = null, freqDataArray = null;
   let rafId = null;
   let currentDetectedFreq = null;
+  let smoothedFreq = null; // Ekrandaki sıçramayı önleyen filtreleme değişkeni
 
   let genOscillator = null, genGain = null;
 
-  const STORAGE_KEY = 'frekans_kayitlari_v2';
+  const STORAGE_KEY = 'frekans_kayitlari_v3';
 
   // ---------- Yardımcılar ----------
   function ensureAudioContext(){
@@ -356,93 +357,76 @@
   }
 
   if (!window.isSecureContext){
-    secureHintEl.textContent = 'ERR: GUYENLI BAGLANTI (HTTPS/LOCALHOST) BULUNAMADI. ERISIM REDDEDILEBILIR.';
+    secureHintEl.textContent = 'ERR: GUVENLI BAGLANTI (HTTPS/LOCALHOST) BULUNAMADI.';
     secureHintEl.style.color = 'var(--red)';
     secureHintEl.style.opacity = '1';
   }
 
-  // ---------- Perde/Frekans tespiti (autocorrelation - ham veriyi doğrudan okuma) ----------
+  // ---------- Hassas & Stabil Otokorelasyon Algoritması ----------
   function detectPitch(buffer, sampleRate){
     const SIZE = buffer.length;
-    let rms = 0;
-    for (let i=0;i<SIZE;i++){ const v = buffer[i]; rms += v*v; }
-    rms = Math.sqrt(rms/SIZE);
-    
-    // Filtreleme kaldırıldı: çok düşük sinyalleri dahi işlemeye alıyoruz
-    if (rms < 0.0001) return {freq:null, confidence:0, rms:rms, reason:'silence'};
+    let sumSq = 0;
+    for (let i = 0; i < SIZE; i++) {
+      const v = buffer[i];
+      sumSq += v * v;
+    }
+    const rms = Math.sqrt(sumSq / SIZE);
 
-    const minFreq = 20, maxFreq = 4000;
-    const maxPeriod = Math.min(SIZE-2, Math.floor(sampleRate/minFreq));
-    const minPeriod = Math.max(2, Math.floor(sampleRate/maxFreq));
-    if (maxPeriod <= minPeriod) return {freq:null, confidence:0, rms:rms, reason:'weak'};
+    // Dip ses / Sessizlik Eşiği (Ortam gürültüsünü süzer)
+    if (rms < 0.005) {
+      return { freq: null, confidence: 0, reason: 'silence' };
+    }
 
-    const c = new Float32Array(maxPeriod+2);
-    for (let lag=minPeriod; lag<=maxPeriod; lag++){
+    const minFreq = 40;
+    const maxFreq = 2200;
+    const maxPeriod = Math.floor(sampleRate / minFreq);
+    const minPeriod = Math.floor(sampleRate / maxFreq);
+
+    const c = new Float32Array(maxPeriod + 1);
+    for (let lag = minPeriod; lag <= maxPeriod; lag++) {
       let sum = 0;
-      const limit = SIZE - lag;
-      for (let i=0;i<limit;i++) sum += buffer[i]*buffer[i+lag];
+      for (let i = 0; i < SIZE - lag; i++) {
+        sum += buffer[i] * buffer[i + lag];
+      }
       c[lag] = sum;
     }
 
-    let maxVal = -Infinity, maxPos = -1;
-    for (let lag=minPeriod; lag<=maxPeriod; lag++){
-      if (c[lag] > maxVal){ maxVal = c[lag]; maxPos = lag; }
+    let maxVal = -Infinity;
+    let maxPos = -1;
+    for (let lag = minPeriod; lag <= maxPeriod; lag++) {
+      if (c[lag] > maxVal) {
+        maxVal = c[lag];
+        maxPos = lag;
+      }
     }
-    if (maxPos < 0 || maxVal <= 0) return {freq:null, confidence:0, rms:rms, reason:'noisy'};
 
+    if (maxPos < 0 || maxVal <= 0) {
+      return { freq: null, confidence: 0, reason: 'noisy' };
+    }
+
+    // Parabolik İnterpolasyon (Alt-Hz seviyesinde tam hassasiyet)
     let T0 = maxPos;
-    if (maxPos > minPeriod && maxPos < maxPeriod){
-      const x1=c[maxPos-1], x2=c[maxPos], x3=c[maxPos+1];
-      const a=(x1+x3-2*x2)/2, b=(x3-x1)/2;
-      if (a !== 0) T0 = maxPos - b/(2*a);
+    if (maxPos > minPeriod && maxPos < maxPeriod) {
+      const x1 = c[maxPos - 1], x2 = c[maxPos], x3 = c[maxPos + 1];
+      const a = (x1 + x3 - 2 * x2) / 2;
+      const b = (x3 - x1) / 2;
+      if (a !== 0) T0 = maxPos - b / (2 * a);
     }
-    if (!(T0 > 0)) return {freq:null, confidence:0, rms:rms, reason:'noisy'};
+
     const freq = sampleRate / T0;
+    const confidence = sumSq > 0 ? Math.min(1, Math.max(0, maxVal / sumSq)) : 0;
 
-    let energy = 0;
-    for (let i=0;i<SIZE;i++) energy += buffer[i]*buffer[i];
-    const confidence = energy > 0 ? Math.max(0, Math.min(1, maxVal/energy)) : 0;
-
-    return {freq:freq, confidence:confidence, rms:rms, reason:'ok'};
+    return { freq: freq, confidence: confidence, reason: 'ok' };
   }
 
-  function goertzelMagnitude(samples, targetFreq, sampleRate){
-    const N = samples.length;
-    if (targetFreq <= 0 || targetFreq >= sampleRate/2) return 0;
-    const k = Math.round(N * targetFreq / sampleRate);
-    const omega = (2*Math.PI*k)/N;
-    const cosine = Math.cos(omega), sine = Math.sin(omega);
-    const coeff = 2*cosine;
-    let s0=0, s1=0, s2=0;
-    for (let i=0;i<N;i++){
-      s0 = samples[i] + coeff*s1 - s2;
-      s2 = s1; s1 = s0;
-    }
-    const real = s1 - s2*cosine;
-    const imag = s2*sine;
-    return Math.sqrt(real*real + imag*imag);
-  }
-
-  function correctOctave(freq, samples, sampleRate){
-    if (!freq) return freq;
-    let f = freq;
-    for (let iter=0; iter<2; iter++){
-      if (f/2 < 50) break;
-      const mFull = goertzelMagnitude(samples, f, sampleRate);
-      const mHalf = goertzelMagnitude(samples, f/2, sampleRate);
-      if (mHalf >= mFull*0.85){ f = f/2; } else break;
-    }
-    return f;
-  }
-
-  // ---------- Kanvas kurulumu (HiDPI) ----------
+  // ---------- Kanvas Kurulumu ----------
   function setupCanvas(canvas){
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.round(rect.width*dpr));
-    canvas.height = Math.max(1, Math.round(rect.height*dpr));
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return ctx;
   }
   function setupCanvases(){
@@ -457,28 +441,28 @@
 
   function clearCanvas(ctx, canvas){
     if (!ctx) return;
-    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
   }
 
   function drawWave(data){
     if (!waveCtx) return;
     const w = waveCanvas.clientWidth, h = waveCanvas.clientHeight;
-    waveCtx.clearRect(0,0,w,h);
+    waveCtx.clearRect(0, 0, w, h);
     
-    waveCtx.strokeStyle = 'rgba(0, 240, 255, 0.1)';
+    waveCtx.strokeStyle = 'rgba(0, 240, 255, 0.15)';
     waveCtx.lineWidth = 1;
     waveCtx.beginPath();
-    waveCtx.moveTo(0,h/2); waveCtx.lineTo(w,h/2); waveCtx.stroke();
+    waveCtx.moveTo(0, h/2); waveCtx.lineTo(w, h/2); waveCtx.stroke();
 
     waveCtx.beginPath();
     waveCtx.lineWidth = 2;
     waveCtx.strokeStyle = '#00f0ff';
     const step = data.length / w;
-    for (let x=0; x<w; x++){
-      const idx = Math.floor(x*step);
+    for (let x = 0; x < w; x++){
+      const idx = Math.floor(x * step);
       const v = data[idx];
-      const y = h/2 - v*(h/2)*0.9;
-      if (x===0) waveCtx.moveTo(x,y); else waveCtx.lineTo(x,y);
+      const y = h/2 - v * (h/2) * 0.9;
+      if (x === 0) waveCtx.moveTo(x, y); else waveCtx.lineTo(x, y);
     }
     waveCtx.stroke();
   }
@@ -486,34 +470,36 @@
   function drawSpectrum(freqData, sampleRate, fftSize){
     if (!specCtx) return;
     const w = specCanvas.clientWidth, h = specCanvas.clientHeight;
-    specCtx.clearRect(0,0,w,h);
+    specCtx.clearRect(0, 0, w, h);
     const maxDisplayFreq = 4000;
-    const binHz = sampleRate/fftSize;
-    const maxBin = Math.max(1, Math.min(freqData.length, Math.ceil(maxDisplayFreq/binHz)));
+    const binHz = sampleRate / fftSize;
+    const maxBin = Math.max(1, Math.min(freqData.length, Math.ceil(maxDisplayFreq / binHz)));
     const barW = w / maxBin;
-    for (let i=0;i<maxBin;i++){
-      const v = freqData[i]/255;
-      const barH = v*h;
-      const r = Math.floor(v*255);
-      const g = Math.floor(255 - v*100);
+
+    for (let i = 0; i < maxBin; i++){
+      const v = freqData[i] / 255;
+      const barH = v * h;
+      const r = Math.floor(v * 255);
+      const g = Math.floor(255 - v * 100);
       specCtx.fillStyle = `rgb(${r},${g},0)`;
-      specCtx.fillRect(i*barW, h-barH, Math.max(1,barW-0.5), barH);
+      specCtx.fillRect(i * barW, h - barH, Math.max(1, barW - 0.5), barH);
     }
+
     if (currentDetectedFreq){
-      const x = (currentDetectedFreq/binHz) * barW;
-      if (x>=0 && x<=w){
+      const x = (currentDetectedFreq / binHz) * barW;
+      if (x >= 0 && x <= w){
         specCtx.strokeStyle = '#00f0ff';
         specCtx.lineWidth = 1;
         specCtx.setLineDash([4, 4]);
         specCtx.beginPath();
-        specCtx.moveTo(x,0); specCtx.lineTo(x,h);
+        specCtx.moveTo(x, 0); specCtx.lineTo(x, h);
         specCtx.stroke();
         specCtx.setLineDash([]);
       }
     }
   }
 
-  // ---------- Mikrofon ----------
+  // ---------- Mikrofon İşlemleri ----------
   async function startMic(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
       setMicStatus('ERR: DONANIM BULUNAMADI', 'error');
@@ -522,7 +508,7 @@
     const ctx = ensureAudioContext();
     try{
       micStream = await navigator.mediaDevices.getUserMedia({
-        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
       });
     }catch(err){
       setMicStatus('ERR: ERISIM REDDEDILDI VEYA DONANIM YOK.', 'error');
@@ -532,7 +518,7 @@
     micSource = ctx.createMediaStreamSource(micStream);
     analyser = ctx.createAnalyser();
     analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.1; // Tepkime hızlandırıldı
+    analyser.smoothingTimeConstant = 0.2;
     micSource.connect(analyser);
     timeDataArray = new Float32Array(analyser.fftSize);
     freqDataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -547,7 +533,7 @@
   function stopMic(){
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
-    if (micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+    if (micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
     if (micSource){ try{ micSource.disconnect(); }catch(e){} micSource = null; }
     analyser = null;
 
@@ -562,6 +548,7 @@
     useDetectedBtn.disabled = true;
     saveFreqBtn.disabled = true;
     currentDetectedFreq = null;
+    smoothedFreq = null;
 
     levelBarFill.style.width = '0%';
     levelPercentEl.textContent = '0%';
@@ -575,26 +562,34 @@
     analyser.getByteFrequencyData(freqDataArray);
 
     let sum = 0;
-    for (let i=0;i<timeDataArray.length;i++){ const v=timeDataArray[i]; sum += v*v; }
-    const rms = Math.sqrt(sum/timeDataArray.length);
-    const levelPct = Math.max(0, Math.min(100, Math.round(rms*350)));
+    for (let i = 0; i < timeDataArray.length; i++){ const v = timeDataArray[i]; sum += v * v; }
+    const rms = Math.sqrt(sum / timeDataArray.length);
+    const levelPct = Math.max(0, Math.min(100, Math.round(rms * 350)));
     levelBarFill.style.width = levelPct + '%';
     levelPercentEl.textContent = levelPct + '%';
 
     const result = detectPitch(timeDataArray, audioCtx.sampleRate);
     
-    // Filtreleme yapmadan doğrudan ekrana yansıtma
-    if (result.freq && isFinite(result.freq)) {
-      const corrected = correctOctave(result.freq, timeDataArray, audioCtx.sampleRate);
-      currentDetectedFreq = corrected;
-      freqNumberEl.textContent = corrected.toFixed(1);
-      freqStatusEl.textContent = '';
-      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence*100);
+    if (result.reason === 'ok' && result.confidence > 0.2) {
+      const rawFreq = result.freq;
+      
+      // Yumuşatma Filtresi (Sayıların ekranda gözü yormadan yumuşakça akmasını sağlar)
+      if (smoothedFreq === null) {
+        smoothedFreq = rawFreq;
+      } else {
+        smoothedFreq = smoothedFreq * 0.7 + rawFreq * 0.3;
+      }
+
+      currentDetectedFreq = smoothedFreq;
+      freqNumberEl.textContent = smoothedFreq.toFixed(1);
+      freqStatusEl.textContent = 'SES ALGILANDI';
+      confidenceLabelEl.textContent = 'VERI DOGRULUGU: %' + Math.round(result.confidence * 100);
     } else {
       freqNumberEl.textContent = '0.0';
       freqStatusEl.textContent = 'SINYAL BEKLENIYOR';
       confidenceLabelEl.textContent = 'VERI DOGRULUGU: %0';
       currentDetectedFreq = null;
+      smoothedFreq = null;
     }
 
     useDetectedBtn.disabled = currentDetectedFreq == null;
@@ -609,7 +604,7 @@
   micStartBtn.addEventListener('click', startMic);
   micStopBtn.addEventListener('click', stopMic);
 
-  // ---------- Kaydedilen frekanslar ----------
+  // ---------- Kayıtlı Frekanslar ----------
   function loadSaved(){
     try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch(e){ return []; }
@@ -685,7 +680,7 @@
     if (!item) return;
     const id = Number(item.dataset.id);
     const list = loadSaved();
-    const rec = list.find(function(r){ return r.id === id; });
+    const rec = list.find(r => r.id === id);
     if (!rec) return;
     const action = btn.dataset.action;
     if (action === 'use'){
@@ -694,17 +689,17 @@
       genFreqInput.value = rec.freq.toFixed(1);
       startGen(rec.freq);
     } else if (action === 'delete'){
-      persistSaved(list.filter(function(r){ return r.id !== id; }));
+      persistSaved(list.filter(r => r.id !== id));
       renderSaved();
     }
   });
 
-  // ---------- Frekans üretici ----------
+  // ---------- Frekans Üretici ----------
   function startGen(freq){
     const ctx = ensureAudioContext();
     stopGen();
     genGain = ctx.createGain();
-    genGain.gain.value = Number(volumeSlider.value)/100;
+    genGain.gain.value = Number(volumeSlider.value) / 100;
     genOscillator = ctx.createOscillator();
     genOscillator.type = 'sine';
     genOscillator.frequency.value = freq;
@@ -745,7 +740,7 @@
   genFreqInput.addEventListener('input', function(){
     if (genOscillator){
       const f = parseFloat(genFreqInput.value);
-      if (f && f>0 && isFinite(f)){
+      if (f && f > 0 && isFinite(f)){
         genOscillator.frequency.value = f;
         genStatusEl.textContent = f.toFixed(1) + ' HZ — SINYAL GONDERILIYOR';
       }
@@ -754,14 +749,14 @@
 
   volumeSlider.addEventListener('input', function(){
     volumeValueEl.textContent = volumeSlider.value + '%';
-    if (genGain) genGain.gain.value = Number(volumeSlider.value)/100;
+    if (genGain) genGain.gain.value = Number(volumeSlider.value) / 100;
   });
 
   useDetectedBtn.addEventListener('click', function(){
     if (currentDetectedFreq != null) genFreqInput.value = currentDetectedFreq.toFixed(1);
   });
 
-  // ---------- Ses dosyası analizi ----------
+  // ---------- Dosya Analizi ----------
   let selectedFile = null;
 
   audioFileInput.addEventListener('change', function(){
@@ -777,7 +772,7 @@
     if (audioBuf.numberOfChannels > 1){
       const ch0 = audioBuf.getChannelData(0), ch1 = audioBuf.getChannelData(1);
       data = new Float32Array(ch0.length);
-      for (let i=0;i<ch0.length;i++) data[i] = (ch0[i]+ch1[i])/2;
+      for (let i = 0; i < ch0.length; i++) data[i] = (ch0[i] + ch1[i]) / 2;
     } else {
       data = audioBuf.getChannelData(0);
     }
@@ -786,27 +781,27 @@
     if (totalLen < winSize){
       const res = detectPitch(data, sampleRate);
       if (res.reason !== 'ok') return null;
-      return correctOctave(res.freq, data, sampleRate);
+      return res.freq;
     }
-    const numWindows = Math.min(40, Math.max(1, Math.floor(totalLen/winSize)));
+    const numWindows = Math.min(40, Math.max(1, Math.floor(totalLen / winSize)));
     let best = null;
-    for (let w=0; w<numWindows; w++){
-      const start = numWindows > 1 ? Math.floor(w*(totalLen-winSize)/(numWindows-1)) : 0;
-      const seg = data.subarray(start, start+winSize);
+    for (let w = 0; w < numWindows; w++){
+      const start = numWindows > 1 ? Math.floor(w * (totalLen - winSize) / (numWindows - 1)) : 0;
+      const seg = data.subarray(start, start + winSize);
       const res = detectPitch(seg, sampleRate);
       if (res.reason === 'ok' && (best === null || res.confidence > best.confidence)){
-        best = res; best.seg = seg;
+        best = res;
       }
     }
     if (!best) return null;
-    return correctOctave(best.freq, best.seg, sampleRate);
+    return best.freq;
   }
 
   analyzeFileBtn.addEventListener('click', async function(){
     if (!selectedFile) return;
     fileResultEl.textContent = 'ANALIZ EDILIYOR...';
     analyzeFileBtn.disabled = true;
-    await new Promise(function(r){ setTimeout(r, 30); });
+    await new Promise(r => setTimeout(r, 30));
     try{
       const ctx = ensureAudioContext();
       const arrBuf = await selectedFile.arrayBuffer();
