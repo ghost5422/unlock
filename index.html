@@ -108,16 +108,16 @@
                 <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
                 <div class="z-10 flex flex-col items-center w-full">
-                    <div id="display-status-text" class="text-sm font-medium text-gray-400 uppercase tracking-widest mb-4">
+                    <div id="display-status-text" class="text-sm font-medium text-gray-400 uppercase tracking-widest mb-4 transition-colors">
                         Bekleniyor
                     </div>
                     
                     <!-- Frequency / Name Display -->
                     <div class="flex flex-col items-center justify-center h-40 w-full">
-                        <div id="display-main" class="text-5xl md:text-7xl font-bold tracking-tighter text-white font-mono drop-shadow-md truncate max-w-full px-4">
+                        <div id="display-main" class="text-5xl md:text-7xl font-bold tracking-tighter text-white font-mono drop-shadow-md truncate max-w-full px-4 transition-colors">
                             --.-- Hz
                         </div>
-                        <div id="display-sub" class="text-xl md:text-2xl text-blue-400 font-mono mt-4 opacity-0 transition-opacity">
+                        <div id="display-sub" class="text-xl md:text-2xl text-blue-400 font-mono mt-4 opacity-0 transition-all">
                             --.-- Hz
                         </div>
                     </div>
@@ -310,14 +310,13 @@
 
     <!-- Core Application Logic -->
     <script>
-        // İkonları başlat
         lucide.createIcons();
 
         /* ==========================================
            1. YAPILANDIRMA VE SABİTLER
            ========================================== */
         const CONFIG = {
-            FFT_SIZE: 16384, // Yüksek çözünürlük için
+            FFT_SIZE: 16384, 
             MIN_FREQ: 50,    
             MAX_FREQ: 2000,  
             HISTORY_SIZE: 20, 
@@ -325,14 +324,11 @@
             CANVAS_FPS_LIMIT: 30, 
         };
 
-        // Hassasiyet Profilleri revize edildi
-        // reqStability düşürüldü ki standart mikrofonlarda çok zorlanmasın
-        // perc ve fixed değerleri ile tolerans aralığı belirlenir
         const SENSITIVITY_PROFILES = {
-            'low': { perc: 0.02, fixed: 3.0, reqStability: 60 },      // Çok geniş tolerans, kolay eşleşme
-            'medium': { perc: 0.01, fixed: 1.5, reqStability: 75 },   // Orta tolerans
-            'high': { perc: 0.005, fixed: 0.5, reqStability: 85 },    // Yüksek tolerans (Dar eşleşme)
-            'very-high': { perc: 0.002, fixed: 0.2, reqStability: 92 } // Çok yüksek tolerans (Çok zor eşleşme)
+            'low': { perc: 0.02, fixed: 3.0, reqStability: 60 },      
+            'medium': { perc: 0.01, fixed: 1.5, reqStability: 75 },   
+            'high': { perc: 0.005, fixed: 0.5, reqStability: 85 },    
+            'very-high': { perc: 0.002, fixed: 0.2, reqStability: 92 } 
         };
 
         let currentSensitivity = 'high';
@@ -381,7 +377,6 @@
                     const data = localStorage.getItem(this.dbKey);
                     return data ? JSON.parse(data) : [];
                 } catch (e) {
-                    console.error("Veritabanı okunamadı", e);
                     return [];
                 }
             }
@@ -484,7 +479,6 @@
                     this.isRunning = true;
                     return true;
                 } catch (err) {
-                    console.error("Mikrofon hatası:", err);
                     throw err;
                 }
             }
@@ -609,9 +603,10 @@
                 this.animFrameId = null;
                 this.lastCanvasDraw = 0;
                 
-                // Kayıt işlemi için anlık frekansı tutacak değişkenler (BUG FIX 1)
-                this.pendingSaveFreq = null;
-                this.pendingSaveConf = null;
+                // HAFIZA SİSTEMİ (Son Algılanan Frekansı Tutmak İçin)
+                this.persistentFreq = null;
+                this.persistentMatch = null;
+                this.persistentStability = 0;
 
                 // DOM Elements
                 this.elMainDisplay = document.getElementById('display-main');
@@ -664,7 +659,6 @@
                     }, 10);
                 });
 
-                // Hassasiyet Seçimi (BUG FIX 2)
                 document.querySelectorAll('.setting-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         document.querySelectorAll('.setting-btn').forEach(b => {
@@ -674,8 +668,6 @@
                         target.className = "setting-btn px-3 py-2 text-xs rounded border border-blue-500 bg-blue-500/10 text-blue-400";
                         
                         currentSensitivity = target.dataset.level;
-                        
-                        // Ayar değiştiği an listeyi güncelle ki yeni tolerans değerleri arayüzde görünsün
                         this.updateSavedList();
                     });
                 });
@@ -684,19 +676,15 @@
                     btn.addEventListener('click', () => this.closeModals());
                 });
 
-                // Modal açıldığında frekansı dondur ve sakla
+                // Kaydetme butonu artık Hafızadaki (persistent) frekansı kullanıyor
                 this.btnSaveModal.addEventListener('click', () => {
-                    if (!this.audio.lastStableFreq) return;
+                    if (!this.persistentFreq) return;
                     
-                    // Ses kesilse bile modal içinde frekansın kaybolmaması için sabitliyoruz.
-                    this.pendingSaveFreq = this.audio.lastStableFreq;
-                    this.pendingSaveConf = this.audio.currentStability;
-                    
-                    document.getElementById('modal-freq-val').innerText = this.pendingSaveFreq.toFixed(2) + " Hz";
-                    document.getElementById('modal-conf-val').innerText = "%" + this.pendingSaveConf;
+                    document.getElementById('modal-freq-val').innerText = this.persistentFreq.toFixed(2) + " Hz";
+                    document.getElementById('modal-conf-val').innerText = "%" + this.persistentStability;
                     document.getElementById('input-freq-name').value = '';
                     
-                    const conflict = this.db.checkConflict(this.pendingSaveFreq);
+                    const conflict = this.db.checkConflict(this.persistentFreq);
                     const warning = document.getElementById('modal-conflict-warning');
                     if (conflict) {
                         warning.classList.remove('hidden');
@@ -714,32 +702,26 @@
                     }, 10);
                 });
 
-                // Enter tuşu ile kaydetme kolaylığı
                 document.getElementById('input-freq-name').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
                         document.getElementById('btn-confirm-save').click();
                     }
                 });
 
-                // Veritabanına kaydet işlemi (Artık pendingSaveFreq kullanıyor)
                 document.getElementById('btn-confirm-save').addEventListener('click', () => {
                     const name = document.getElementById('input-freq-name').value.trim();
                     if (!name) {
                         this.showError("Lütfen bir isim giriniz.");
                         return;
                     }
-                    if (!this.pendingSaveFreq) {
+                    if (!this.persistentFreq) {
                         this.showError("Frekans algılanamadı, lütfen tekrar deneyin.");
                         return;
                     }
 
-                    this.db.add(name, this.pendingSaveFreq, this.pendingSaveConf);
+                    this.db.add(name, this.persistentFreq, this.persistentStability);
                     this.closeModals();
                     this.updateSavedList();
-                    
-                    // İşlem bittiğinde temizle
-                    this.pendingSaveFreq = null;
-                    this.pendingSaveConf = null;
                 });
             }
 
@@ -779,7 +761,8 @@
                     this.elStatMic.innerText = "Aktif";
                     this.elStatMic.classList.replace('text-gray-300', 'text-emerald-400');
                     this.elStatMicDot.classList.replace('bg-red-500', 'bg-emerald-500');
-                    this.elStatusText.innerText = "Analiz Ediliyor";
+                    this.elStatusText.innerText = "Analiz Ediliyor...";
+                    this.elStatusText.className = "text-sm font-medium uppercase tracking-widest mb-4 text-gray-400";
 
                     this.loop();
                 } catch (e) {
@@ -791,6 +774,11 @@
                 this.audio.stop();
                 cancelAnimationFrame(this.animFrameId);
                 
+                // Dinleme durduğunda hafızayı da temizle
+                this.persistentFreq = null;
+                this.persistentMatch = null;
+                this.persistentStability = 0;
+
                 this.btnToggleListen.innerHTML = '<i data-lucide="mic" class="w-4 h-4"></i><span>Dinlemeyi Başlat</span>';
                 this.btnToggleListen.classList.replace('bg-red-600', 'bg-blue-600');
                 this.btnToggleListen.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
@@ -800,10 +788,14 @@
                 this.elStatMic.innerText = "Pasif";
                 this.elStatMic.classList.replace('text-emerald-400', 'text-gray-300');
                 this.elStatMicDot.classList.replace('bg-emerald-500', 'bg-red-500');
+                
                 this.elStatusText.innerText = "Bekleniyor";
+                this.elStatusText.className = "text-sm font-medium uppercase tracking-widest mb-4 text-gray-400";
                 
                 this.elMainDisplay.innerText = "--.-- Hz";
+                this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter text-white font-mono drop-shadow-md truncate max-w-full px-4 transition-colors";
                 this.elSubDisplay.classList.add('opacity-0');
+                
                 this.elMicFill.style.width = '0%';
                 this.elMicText.innerText = '0%';
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -828,53 +820,83 @@
 
                 this.elStatSignal.innerText = result.quality;
                 this.elStatStab.innerText = `${result.stability}%`;
-
                 this.elStatStab.className = `text-sm font-medium font-mono ${result.stability > 80 ? 'text-emerald-400' : (result.stability > 50 ? 'text-yellow-400' : 'text-gray-400')}`;
 
                 const targetFreq = result.stableFreq || result.freq;
-                
-                if (targetFreq) {
-                    const reqStab = SENSITIVITY_PROFILES[currentSensitivity].reqStability;
-                    
-                    if (result.stability >= reqStab && result.stableFreq) {
-                        this.btnSaveModal.disabled = false;
-                        const match = this.db.match(result.stableFreq);
-                        
-                        if (match) {
-                            this.elMainDisplay.innerText = match.name;
-                            this.elMainDisplay.classList.add('text-emerald-400');
-                            this.elMainDisplay.classList.remove('text-white');
-                            
-                            this.elSubDisplay.innerText = `${result.stableFreq.toFixed(2)} Hz`;
-                            this.elSubDisplay.classList.remove('opacity-0');
+                const reqStab = SENSITIVITY_PROFILES[currentSensitivity].reqStability;
+                const isStableNow = result.stability >= reqStab && result.stableFreq;
 
-                            this.elStatMatch.innerText = "Eşleşti";
-                            this.elStatMatch.classList.replace('text-gray-300', 'text-emerald-400');
-                        } else {
-                            this.elMainDisplay.innerText = `${result.stableFreq.toFixed(2)} Hz`;
-                            this.elMainDisplay.classList.remove('text-emerald-400');
-                            this.elMainDisplay.classList.add('text-white');
-                            this.elSubDisplay.classList.add('opacity-0');
-                            
-                            this.elStatMatch.innerText = "Eşleşmedi";
-                            this.elStatMatch.classList.replace('text-emerald-400', 'text-gray-300');
-                        }
+                // EĞER ŞU AN STABİL BİR SİNYAL VARSA HAFIZAYI GÜNCELLE
+                if (isStableNow) {
+                    this.persistentFreq = result.stableFreq;
+                    this.persistentStability = result.stability;
+                    this.persistentMatch = this.db.match(result.stableFreq);
+                }
+
+                // EKRANI DURUMA GÖRE GÜNCELLE
+                if (isStableNow) {
+                    // DURUM 1: CANLI VE STABİL SİNYAL VAR
+                    this.btnSaveModal.disabled = false;
+                    this.elStatusText.innerText = "CANLI SİNYAL";
+                    this.elStatusText.className = "text-sm font-medium uppercase tracking-widest mb-4 text-emerald-400 transition-colors";
+                    
+                    if (this.persistentMatch) {
+                        this.elMainDisplay.innerText = this.persistentMatch.name;
+                        this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter font-mono drop-shadow-md truncate max-w-full px-4 text-emerald-400 transition-colors";
+                        this.elSubDisplay.innerText = `${this.persistentFreq.toFixed(2)} Hz`;
+                        this.elSubDisplay.classList.remove('opacity-0');
+
+                        this.elStatMatch.innerText = "Eşleşti";
+                        this.elStatMatch.className = "text-sm font-medium text-emerald-400";
                     } else {
-                        this.btnSaveModal.disabled = true;
-                        this.elMainDisplay.innerText = `${targetFreq.toFixed(2)} Hz`;
-                        this.elMainDisplay.classList.remove('text-emerald-400');
-                        this.elMainDisplay.classList.add('text-white');
+                        this.elMainDisplay.innerText = `${this.persistentFreq.toFixed(2)} Hz`;
+                        this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter font-mono drop-shadow-md truncate max-w-full px-4 text-white transition-colors";
                         this.elSubDisplay.classList.add('opacity-0');
-                        this.elStatMatch.innerText = "Bekleniyor";
-                        this.elStatMatch.classList.replace('text-emerald-400', 'text-gray-300');
+                        
+                        this.elStatMatch.innerText = "Eşleşmedi";
+                        this.elStatMatch.className = "text-sm font-medium text-gray-300";
                     }
+
+                } else if (this.persistentFreq) {
+                    // DURUM 2: SİNYAL KESİLDİ AMA HAFIZADA KAYIT VAR
+                    this.btnSaveModal.disabled = false;
+                    this.elStatusText.innerText = "SON ALGILANAN (SESSİZ)";
+                    this.elStatusText.className = "text-sm font-medium uppercase tracking-widest mb-4 text-blue-400 transition-colors";
+
+                    if (this.persistentMatch) {
+                        this.elMainDisplay.innerText = this.persistentMatch.name;
+                        this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter font-mono drop-shadow-md truncate max-w-full px-4 text-gray-400 transition-colors"; // Soluk renk
+                        
+                        this.elSubDisplay.innerText = `${this.persistentFreq.toFixed(2)} Hz`;
+                        this.elSubDisplay.classList.remove('opacity-0');
+
+                        this.elStatMatch.innerText = "Son Eşleşme";
+                        this.elStatMatch.className = "text-sm font-medium text-gray-400";
+                    } else {
+                        this.elMainDisplay.innerText = `${this.persistentFreq.toFixed(2)} Hz`;
+                        this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter font-mono drop-shadow-md truncate max-w-full px-4 text-gray-400 transition-colors"; // Soluk renk
+                        this.elSubDisplay.classList.add('opacity-0');
+                        
+                        this.elStatMatch.innerText = "-";
+                        this.elStatMatch.className = "text-sm font-medium text-gray-500";
+                    }
+
                 } else {
+                    // DURUM 3: HENÜZ HİÇ SİNYAL ALGILANMADI
                     this.btnSaveModal.disabled = true;
-                    this.elMainDisplay.innerText = "--.-- Hz";
-                    this.elMainDisplay.classList.remove('text-emerald-400');
-                    this.elMainDisplay.classList.add('text-white');
+                    this.elStatusText.innerText = "ANALİZ EDİLİYOR...";
+                    this.elStatusText.className = "text-sm font-medium uppercase tracking-widest mb-4 text-gray-500 transition-colors";
+                    
+                    if (targetFreq) {
+                        this.elMainDisplay.innerText = `${targetFreq.toFixed(2)} Hz`;
+                    } else {
+                        this.elMainDisplay.innerText = "--.-- Hz";
+                    }
+                    
+                    this.elMainDisplay.className = "text-5xl md:text-7xl font-bold tracking-tighter font-mono drop-shadow-md truncate max-w-full px-4 text-gray-600 transition-colors";
                     this.elSubDisplay.classList.add('opacity-0');
-                    this.elStatMatch.innerText = "-";
+                    this.elStatMatch.innerText = "Bekleniyor";
+                    this.elStatMatch.className = "text-sm font-medium text-gray-500";
                 }
             }
 
@@ -971,9 +993,6 @@
             }
         }
 
-        /* ==========================================
-           6. BAŞLATMA
-           ========================================== */
         window.addEventListener('DOMContentLoaded', () => {
             const db = new FrequencyStorage();
             const audioApp = new AudioSystem();
