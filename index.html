@@ -245,7 +245,7 @@
             <div class="space-y-4">
                 <div class="bg-gray-900/50 p-4 rounded-xl border border-gray-800 flex justify-between items-center">
                     <div>
-                        <div class="text-xs text-gray-500 mb-1">Mevcut Stabil Frekans</div>
+                        <div class="text-xs text-gray-500 mb-1">Kaydedilecek Frekans</div>
                         <div id="modal-freq-val" class="text-2xl font-mono font-bold text-white">--.-- Hz</div>
                     </div>
                     <div class="text-right">
@@ -317,21 +317,22 @@
            1. YAPILANDIRMA VE SABİTLER
            ========================================== */
         const CONFIG = {
-            FFT_SIZE: 16384, // Yüksek çözünürlük için (44100/16384 ≈ 2.69Hz bin çözünürlüğü)
-            MIN_FREQ: 50,    // Alt frekans sınırı (Hz)
-            MAX_FREQ: 2000,  // Üst frekans sınırı (Hz) (İnsan sesi ve yaygın tonlar için yeterli)
-            HISTORY_SIZE: 20, // Stabilite kontrolü için saklanacak frame sayısı (~300ms @ 60fps)
-            NOISE_FLOOR: -70, // dB cinsinden minimum sinyal gücü eşiği
-            CANVAS_FPS_LIMIT: 30, // Performans için canvas güncelleme hızı limiti
+            FFT_SIZE: 16384, // Yüksek çözünürlük için
+            MIN_FREQ: 50,    
+            MAX_FREQ: 2000,  
+            HISTORY_SIZE: 20, 
+            NOISE_FLOOR: -70, 
+            CANVAS_FPS_LIMIT: 30, 
         };
 
-        // Hassasiyet Profilleri (Tolerans hesaplamasında kullanılır)
-        // tolerance = (freq * percentage) + fixed_hz
+        // Hassasiyet Profilleri revize edildi
+        // reqStability düşürüldü ki standart mikrofonlarda çok zorlanmasın
+        // perc ve fixed değerleri ile tolerans aralığı belirlenir
         const SENSITIVITY_PROFILES = {
-            'low': { perc: 0.015, fixed: 2.0, reqStability: 80 },    // ±~5Hz @ 200Hz
-            'medium': { perc: 0.008, fixed: 1.0, reqStability: 85 }, // ±~2.6Hz @ 200Hz
-            'high': { perc: 0.004, fixed: 0.4, reqStability: 92 },   // ±~1.2Hz @ 200Hz (Varsayılan - 200 ile 201 ayrımı için uygun)
-            'very-high': { perc: 0.0015, fixed: 0.2, reqStability: 96 } // ±~0.5Hz @ 200Hz
+            'low': { perc: 0.02, fixed: 3.0, reqStability: 60 },      // Çok geniş tolerans, kolay eşleşme
+            'medium': { perc: 0.01, fixed: 1.5, reqStability: 75 },   // Orta tolerans
+            'high': { perc: 0.005, fixed: 0.5, reqStability: 85 },    // Yüksek tolerans (Dar eşleşme)
+            'very-high': { perc: 0.002, fixed: 0.2, reqStability: 92 } // Çok yüksek tolerans (Çok zor eşleşme)
         };
 
         let currentSensitivity = 'high';
@@ -340,37 +341,26 @@
            2. YARDIMCI MATEMATİK VE SİNYAL İŞLEME
            ========================================== */
         const MathUtils = {
-            // Dizi ortalaması
             mean: (arr) => arr.reduce((a, b) => a + b, 0) / arr.length,
-            // Dizi medyanı (Aykırı değerleri filtrelemek için mükemmeldir)
             median: (arr) => {
                 const sorted = [...arr].sort((a, b) => a - b);
                 const mid = Math.floor(sorted.length / 2);
                 return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
             },
-            // Standart Sapma (Sinyal stabilitesini ölçmek için)
             stdDev: (arr, meanVal) => {
                 const m = meanVal !== undefined ? meanVal : MathUtils.mean(arr);
                 const variance = arr.reduce((acc, val) => acc + Math.pow(val - m, 2), 0) / arr.length;
                 return Math.sqrt(variance);
             },
-            // RMS (Root Mean Square) - Ses seviyesini hesaplar
             rms: (dataArray) => {
                 let sum = 0;
                 for (let i = 0; i < dataArray.length; i++) {
-                    const val = dataArray[i] / 128.0 - 1.0; // 0-255 to -1.0 - 1.0
+                    const val = dataArray[i] / 128.0 - 1.0; 
                     sum += val * val;
                 }
                 return Math.sqrt(sum / dataArray.length);
             },
-            
-            /**
-             * Parabolic Interpolation
-             * FFT bin'leri ayrık noktalardır. Gerçek tepe noktası genellikle iki bin arasındadır.
-             * Bu fonksiyon, tepe noktası ve komşularını kullanarak gerçek frekansı matematiksel olarak tahmin eder.
-             */
             parabolicInterpolation: (alpha, beta, gamma) => {
-                // p = 0.5 * (alpha - gamma) / (alpha - 2*beta + gamma)
                 const denominator = alpha - 2 * beta + gamma;
                 if (denominator === 0) return 0;
                 return 0.5 * (alpha - gamma) / denominator;
@@ -423,20 +413,12 @@
                 return this.records.sort((a, b) => a.targetFrequency - b.targetFrequency);
             }
 
-            /**
-             * Çakışma kontrolü: Yeni eklenecek frekans mevcutlara çok yakın mı?
-             */
             checkConflict(frequency) {
                 const profile = SENSITIVITY_PROFILES[currentSensitivity];
                 const tolerance = (frequency * profile.perc) + profile.fixed;
-                // Çakışma uyarısı için toleransın 2 katı mesafe ararız
                 return this.records.find(r => Math.abs(r.targetFrequency - frequency) < (tolerance * 2));
             }
 
-            /**
-             * Algılanan frekansı kayıtlı veritabanı ile eşleştirme
-             * False Positive önlemek için çok sıkı kurallar uygulanır.
-             */
             match(detectedFreq) {
                 if (!detectedFreq) return null;
                 
@@ -445,7 +427,6 @@
                 let smallestDiff = Infinity;
 
                 for (const record of this.records) {
-                    // Dinamik tolerans hesaplama (Örn: Yüksek hassasiyette 200Hz için ~1.2Hz)
                     const tolerance = (record.targetFrequency * profile.perc) + profile.fixed;
                     const diff = Math.abs(record.targetFrequency - detectedFreq);
 
@@ -468,12 +449,9 @@
                 this.audioCtx = null;
                 this.analyser = null;
                 this.microphone = null;
+                this.freqDataFloat = null; 
+                this.timeDataByte = null;  
                 
-                // Data buffers
-                this.freqDataFloat = null; // Hassas matematik için (dB)
-                this.timeDataByte = null;  // RMS seviyesi için
-                
-                // State
                 this.isRunning = false;
                 this.historyBuffer = [];
                 this.lastStableFreq = null;
@@ -484,12 +462,11 @@
             async initialize() {
                 try {
                     this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         audio: {
                             echoCancellation: false,
                             autoGainControl: false,
-                            noiseSuppression: false // Saf sinyal istiyoruz
+                            noiseSuppression: false 
                         } 
                     });
 
@@ -497,7 +474,7 @@
                     this.analyser = this.audioCtx.createAnalyser();
                     
                     this.analyser.fftSize = CONFIG.FFT_SIZE;
-                    this.analyser.smoothingTimeConstant = 0.5; // Ani zıplamaları biraz yumuşat
+                    this.analyser.smoothingTimeConstant = 0.5; 
                     
                     this.microphone.connect(this.analyser);
                     
@@ -523,33 +500,26 @@
             processFrame() {
                 if (!this.isRunning) return null;
 
-                // Verileri çek
                 this.analyser.getFloatFrequencyData(this.freqDataFloat);
                 this.analyser.getByteTimeDomainData(this.timeDataByte);
 
-                // 1. Sinyal Seviyesi (RMS) Analizi ve Gürültü Filtresi
                 const rms = MathUtils.rms(this.timeDataByte);
-                this.signalLevel = rms; // 0.0 - 1.0 arası
+                this.signalLevel = rms; 
 
-                // Eğer ses çok düşükse (Noise floor) işlemi kes
-                // RMS ~0.01 genelde çok sessiz ortamdır
                 if (rms < 0.005) {
                     this.addToHistory(null);
                     return this.getAnalysisResult(null, "Zayıf");
                 }
 
-                // 2. Baskın Frekans Tespiti (Peak Detection)
                 const sampleRate = this.audioCtx.sampleRate;
                 const binSize = sampleRate / CONFIG.FFT_SIZE;
                 
-                // İnsan sesi veya müzik aleti genelde bu aralıktadır
                 const minBin = Math.floor(CONFIG.MIN_FREQ / binSize);
                 const maxBin = Math.floor(CONFIG.MAX_FREQ / binSize);
 
                 let maxVal = -Infinity;
                 let maxIndex = -1;
 
-                // En yüksek tepeyi bul
                 for (let i = minBin; i <= maxBin; i++) {
                     if (this.freqDataFloat[i] > maxVal) {
                         maxVal = this.freqDataFloat[i];
@@ -557,29 +527,23 @@
                     }
                 }
 
-                // Eşik değer kontrolü (Örn: -70 dB altı gürültüdür)
                 if (maxVal < CONFIG.NOISE_FLOOR || maxIndex <= 0) {
                     this.addToHistory(null);
                     return this.getAnalysisResult(null, "Zayıf");
                 }
 
-                // 3. Parabolic Interpolation (Bin merkezinden kurtul, gerçek frekansı bul)
                 const alpha = this.freqDataFloat[maxIndex - 1];
-                const beta = this.freqDataFloat[maxIndex]; // Max
+                const beta = this.freqDataFloat[maxIndex]; 
                 const gamma = this.freqDataFloat[maxIndex + 1];
                 
                 const p = MathUtils.parabolicInterpolation(alpha, beta, gamma);
                 let exactFreq = (maxIndex + p) * binSize;
 
-                // 4. Harmonik Kontrolü (Harmonic filtering)
-                // Eğer exactFreq 400 ise, ve 200'de de güçlü bir sinyal varsa, asıl olan 200 olabilir.
                 const subHarmonicFreq = exactFreq / 2;
                 if (subHarmonicFreq > CONFIG.MIN_FREQ) {
                     const subBin = Math.round(subHarmonicFreq / binSize);
                     const subMag = this.freqDataFloat[subBin];
-                    // Eğer alt harmoniğin gücü, ana peak'in 15 dB'inden daha yakınsa, muhtemelen temel frekans odur.
                     if (subMag > maxVal - 15) {
-                        // Sub harmoniğin tam tepesini bulalım
                         const sa = this.freqDataFloat[subBin - 1];
                         const sb = this.freqDataFloat[subBin];
                         const sc = this.freqDataFloat[subBin + 1];
@@ -588,9 +552,7 @@
                     }
                 }
 
-                // 5. Temporal Smoothing (Geçmişe ekle)
                 this.addToHistory(exactFreq);
-                
                 const signalQuality = rms > 0.05 ? "Güçlü" : (rms > 0.015 ? "Orta" : "Zayıf");
                 
                 return this.getAnalysisResult(exactFreq, signalQuality);
@@ -604,7 +566,6 @@
             }
 
             getAnalysisResult(instantFreq, signalQuality) {
-                // Sadece geçerli (null olmayan) frekansları al
                 const validHistory = this.historyBuffer.filter(f => f !== null);
                 
                 if (validHistory.length < CONFIG.HISTORY_SIZE * 0.5) {
@@ -613,23 +574,15 @@
                     return { freq: instantFreq, stableFreq: null, stability: 0, signalLevel: this.signalLevel, quality: signalQuality };
                 }
 
-                // Median filtresi ile uçucu (anormal) değerleri at
                 const medianFreq = MathUtils.median(validHistory);
-                
-                // Standart sapma ile sapmayı ölç (Hz cinsinden)
                 const stdDev = MathUtils.stdDev(validHistory, medianFreq);
-                
-                // Stabilite Skoru (100 üzerinden)
-                // Sapma 0 ise %100, sapma > 5Hz ise %0
                 let stabilityScore = Math.max(0, 100 - (stdDev * 20));
                 
-                // Eğer kararlılık eşik değerinden yüksekse, kararlı frekansı güncelle
                 const reqStab = SENSITIVITY_PROFILES[currentSensitivity].reqStability;
+                
                 if (stabilityScore >= reqStab) {
-                    // Düzleştirme (Smoothing) için geçmişin ortalamasını kullan
                     this.lastStableFreq = MathUtils.mean(validHistory);
                 } else if (stabilityScore < reqStab - 20) {
-                    // Sinyal çok bozulduysa sil
                     this.lastStableFreq = null;
                 }
 
@@ -641,7 +594,7 @@
                     stability: this.currentStability,
                     signalLevel: this.signalLevel,
                     quality: signalQuality,
-                    rawBuffer: this.freqDataFloat // Canvas için referans
+                    rawBuffer: this.freqDataFloat
                 };
             }
         }
@@ -655,6 +608,10 @@
                 this.audio = audioApp;
                 this.animFrameId = null;
                 this.lastCanvasDraw = 0;
+                
+                // Kayıt işlemi için anlık frekansı tutacak değişkenler (BUG FIX 1)
+                this.pendingSaveFreq = null;
+                this.pendingSaveConf = null;
 
                 // DOM Elements
                 this.elMainDisplay = document.getElementById('display-main');
@@ -672,7 +629,6 @@
                 this.btnToggleListen = document.getElementById('btn-toggle-listen');
                 this.btnSaveModal = document.getElementById('btn-save-modal');
                 
-                // Canvas
                 this.canvas = document.getElementById('spectrum-canvas');
                 this.ctx = this.canvas.getContext('2d');
                 this.peakMarker = document.getElementById('peak-marker');
@@ -692,7 +648,6 @@
             }
 
             bindEvents() {
-                // Mikrofon Başlat/Durdur
                 this.btnToggleListen.addEventListener('click', async () => {
                     if (this.audio.isRunning) {
                         this.stopListening();
@@ -701,46 +656,47 @@
                     }
                 });
 
-                // Ayarlar Modal
                 document.getElementById('btn-settings').addEventListener('click', () => {
                     document.getElementById('modal-settings').classList.remove('hidden');
-                    // Gecikmeli opacity ekle (animasyon için)
                     setTimeout(() => {
                         document.getElementById('modal-settings').classList.remove('opacity-0');
                         document.getElementById('modal-settings-content').classList.remove('scale-95');
                     }, 10);
                 });
 
-                // Hassasiyet Seçimi
+                // Hassasiyet Seçimi (BUG FIX 2)
                 document.querySelectorAll('.setting-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        // Reset all
                         document.querySelectorAll('.setting-btn').forEach(b => {
                             b.className = "setting-btn px-3 py-2 text-xs rounded border border-gray-700 bg-gray-900 text-gray-400 hover:bg-gray-800 transition-colors";
                         });
-                        // Set active
                         const target = e.target;
                         target.className = "setting-btn px-3 py-2 text-xs rounded border border-blue-500 bg-blue-500/10 text-blue-400";
+                        
                         currentSensitivity = target.dataset.level;
+                        
+                        // Ayar değiştiği an listeyi güncelle ki yeni tolerans değerleri arayüzde görünsün
+                        this.updateSavedList();
                     });
                 });
 
-                // Modal Kapatıcılar
                 document.querySelectorAll('.btn-close-modal').forEach(btn => {
                     btn.addEventListener('click', () => this.closeModals());
                 });
 
-                // Kaydet Modal Aç
+                // Modal açıldığında frekansı dondur ve sakla
                 this.btnSaveModal.addEventListener('click', () => {
                     if (!this.audio.lastStableFreq) return;
                     
-                    const freq = this.audio.lastStableFreq;
-                    document.getElementById('modal-freq-val').innerText = freq.toFixed(2) + " Hz";
-                    document.getElementById('modal-conf-val').innerText = "%" + this.audio.currentStability;
+                    // Ses kesilse bile modal içinde frekansın kaybolmaması için sabitliyoruz.
+                    this.pendingSaveFreq = this.audio.lastStableFreq;
+                    this.pendingSaveConf = this.audio.currentStability;
+                    
+                    document.getElementById('modal-freq-val').innerText = this.pendingSaveFreq.toFixed(2) + " Hz";
+                    document.getElementById('modal-conf-val').innerText = "%" + this.pendingSaveConf;
                     document.getElementById('input-freq-name').value = '';
                     
-                    // Çakışma Kontrolü
-                    const conflict = this.db.checkConflict(freq);
+                    const conflict = this.db.checkConflict(this.pendingSaveFreq);
                     const warning = document.getElementById('modal-conflict-warning');
                     if (conflict) {
                         warning.classList.remove('hidden');
@@ -758,18 +714,32 @@
                     }, 10);
                 });
 
-                // Veritabanına Kaydet Onay
+                // Enter tuşu ile kaydetme kolaylığı
+                document.getElementById('input-freq-name').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('btn-confirm-save').click();
+                    }
+                });
+
+                // Veritabanına kaydet işlemi (Artık pendingSaveFreq kullanıyor)
                 document.getElementById('btn-confirm-save').addEventListener('click', () => {
                     const name = document.getElementById('input-freq-name').value.trim();
                     if (!name) {
                         this.showError("Lütfen bir isim giriniz.");
                         return;
                     }
-                    if (!this.audio.lastStableFreq) return;
+                    if (!this.pendingSaveFreq) {
+                        this.showError("Frekans algılanamadı, lütfen tekrar deneyin.");
+                        return;
+                    }
 
-                    this.db.add(name, this.audio.lastStableFreq, this.audio.currentStability);
+                    this.db.add(name, this.pendingSaveFreq, this.pendingSaveConf);
                     this.closeModals();
                     this.updateSavedList();
+                    
+                    // İşlem bittiğinde temizle
+                    this.pendingSaveFreq = null;
+                    this.pendingSaveConf = null;
                 });
             }
 
@@ -782,7 +752,7 @@
                     
                     setTimeout(() => {
                         el.classList.add('hidden');
-                    }, 300); // animasyon süresi
+                    }, 300);
                 });
             }
 
@@ -832,7 +802,6 @@
                 this.elStatMicDot.classList.replace('bg-emerald-500', 'bg-red-500');
                 this.elStatusText.innerText = "Bekleniyor";
                 
-                // Reset UI
                 this.elMainDisplay.innerText = "--.-- Hz";
                 this.elSubDisplay.classList.add('opacity-0');
                 this.elMicFill.style.width = '0%';
@@ -852,34 +821,26 @@
             updateDashboard(result) {
                 if (!result) return;
 
-                // Mic Level (RMS'i logaritmik olarak yüzdeye çevirme yaklaşımı)
-                // RMS 0.005 ile 0.5 arası değişir genelde
                 let levelPerc = (result.signalLevel * 200); 
                 if (levelPerc > 100) levelPerc = 100;
                 this.elMicFill.style.width = `${levelPerc}%`;
                 this.elMicText.innerText = `${Math.round(levelPerc)}%`;
 
-                // Status Texts
                 this.elStatSignal.innerText = result.quality;
                 this.elStatStab.innerText = `${result.stability}%`;
 
-                // Renklendirmeler
-                this.elStatStab.className = `text-sm font-medium font-mono ${result.stability > 85 ? 'text-emerald-400' : (result.stability > 50 ? 'text-yellow-400' : 'text-gray-400')}`;
+                this.elStatStab.className = `text-sm font-medium font-mono ${result.stability > 80 ? 'text-emerald-400' : (result.stability > 50 ? 'text-yellow-400' : 'text-gray-400')}`;
 
-                // Frekans ve Eşleşme Mantığı
                 const targetFreq = result.stableFreq || result.freq;
                 
                 if (targetFreq) {
                     const reqStab = SENSITIVITY_PROFILES[currentSensitivity].reqStability;
                     
-                    // Sadece çok stabil olan sinyaller eşleşmeye sokulur
                     if (result.stability >= reqStab && result.stableFreq) {
                         this.btnSaveModal.disabled = false;
-                        
                         const match = this.db.match(result.stableFreq);
                         
                         if (match) {
-                            // EŞLEŞME BULUNDU!
                             this.elMainDisplay.innerText = match.name;
                             this.elMainDisplay.classList.add('text-emerald-400');
                             this.elMainDisplay.classList.remove('text-white');
@@ -890,7 +851,6 @@
                             this.elStatMatch.innerText = "Eşleşti";
                             this.elStatMatch.classList.replace('text-gray-300', 'text-emerald-400');
                         } else {
-                            // Stabil ama eşleşme yok
                             this.elMainDisplay.innerText = `${result.stableFreq.toFixed(2)} Hz`;
                             this.elMainDisplay.classList.remove('text-emerald-400');
                             this.elMainDisplay.classList.add('text-white');
@@ -900,7 +860,6 @@
                             this.elStatMatch.classList.replace('text-emerald-400', 'text-gray-300');
                         }
                     } else {
-                        // Kararsız sinyal, sadece anlık frekansı göster
                         this.btnSaveModal.disabled = true;
                         this.elMainDisplay.innerText = `${targetFreq.toFixed(2)} Hz`;
                         this.elMainDisplay.classList.remove('text-emerald-400');
@@ -910,7 +869,6 @@
                         this.elStatMatch.classList.replace('text-emerald-400', 'text-gray-300');
                     }
                 } else {
-                    // Sinyal yok
                     this.btnSaveModal.disabled = true;
                     this.elMainDisplay.innerText = "--.-- Hz";
                     this.elMainDisplay.classList.remove('text-emerald-400');
@@ -940,11 +898,10 @@
                 const sampleRate = this.audio.audioCtx.sampleRate;
                 const binSize = sampleRate / CONFIG.FFT_SIZE;
                 
-                // Sadece CONFIG.MAX_FREQ değerine kadar çiz
                 const maxDisplayBin = Math.floor(CONFIG.MAX_FREQ / binSize);
                 
                 this.ctx.beginPath();
-                this.ctx.strokeStyle = '#3b82f6'; // blue-500
+                this.ctx.strokeStyle = '#3b82f6';
                 this.ctx.lineWidth = 2;
 
                 const sliceWidth = width / maxDisplayBin;
@@ -952,7 +909,6 @@
 
                 for (let i = 0; i < maxDisplayBin; i++) {
                     const v = data[i];
-                    // dB'i 0-1 aralığına normalize et (-100dB ile -30dB arası)
                     let normalized = (v + 100) / 70;
                     if (normalized < 0) normalized = 0;
                     if (normalized > 1) normalized = 1;
@@ -969,10 +925,8 @@
 
                 this.ctx.stroke();
 
-                // Peak Marker çiz
                 const targetFreq = result.stableFreq || result.freq;
                 if (targetFreq && targetFreq <= CONFIG.MAX_FREQ && targetFreq >= CONFIG.MIN_FREQ && result.quality !== "Zayıf") {
-                    // X pozisyonunu orantılı hesapla
                     const perc = targetFreq / CONFIG.MAX_FREQ;
                     const markerX = perc * width;
                     
@@ -1025,7 +979,6 @@
             const audioApp = new AudioSystem();
             window.UI = new UIController(db, audioApp);
 
-            // Global delete function for inline onclick
             window.deleteRecord = (id) => {
                 if (confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
                     db.remove(id);
