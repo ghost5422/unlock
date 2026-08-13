@@ -2,316 +2,210 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#050608">
-<title>Gece Protokolü — Camera Analyzer</title>
+<title>Gece Protokolü — AI Vision</title>
 <style>
-:root{
-  --bg:#050608;--panel:#0b0e13;--panel2:#10151c;--line:#1d2631;
-  --text:#edf2f7;--muted:#8b98a8;--accent:#7cf2b1;--warn:#ffd166;--danger:#ff5577;
-}
+:root{--bg:#050608;--panel:#0c1016;--line:#202a35;--text:#edf2f7;--muted:#8491a1;--green:#7cf2b1;--red:#ff5577;--yellow:#ffd166}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:radial-gradient(circle at 50% -10%,#16212b 0,#050608 42%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,Arial,sans-serif;min-height:100vh}
-button,input{font:inherit}
-.app{max-width:980px;margin:auto;padding:18px 14px 34px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
-.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2.2px;font-weight:700}
-.brand h1{font-size:22px;margin:3px 0 0;letter-spacing:.3px}
-.status{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#090c10;color:var(--muted);font-size:11px}
-.dot{width:7px;height:7px;border-radius:50%;background:#687382}.dot.live{background:var(--accent);box-shadow:0 0 12px var(--accent)}
-.camera{position:relative;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden;aspect-ratio:16/10;box-shadow:0 18px 55px #0008}
-video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(1)}
-#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.camera-ui{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
-.badge{align-self:flex-start;background:#050608bb;border:1px solid #ffffff18;padding:7px 9px;border-radius:8px;font-size:10px;letter-spacing:1.2px}
-.alert{align-self:center;background:#ff5577e8;color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.5px;opacity:0;transform:translateY(-5px);transition:.18s}
-.alert.show{opacity:1;transform:none}
-.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
-button{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:12px 9px;border-radius:11px;font-weight:700;font-size:12px}
-button:active{transform:scale(.98)}
-button.primary{background:var(--accent);color:#07100b;border-color:var(--accent)}
-button.danger{color:#ff8aa1}
-button:disabled{opacity:.45}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:13px;padding:13px}
-.label{color:var(--muted);font-size:9px;letter-spacing:1.3px;text-transform:uppercase}
-.value{font-size:23px;font-weight:800;margin-top:6px}
-.sub{font-size:10px;color:var(--muted);margin-top:3px}
-.layout{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-.panel{background:linear-gradient(180deg,#0d1117,#090c11);border:1px solid var(--line);border-radius:15px;padding:14px}
-.panel h2{font-size:13px;margin:0 0 13px}
-.range-row{margin:13px 0}
-.range-row>div{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:8px}
-input[type=range]{width:100%;accent-color:var(--accent)}
-.events{max-height:300px;overflow:auto}
-.event{display:flex;gap:9px;padding:10px 0;border-bottom:1px solid #ffffff08;font-size:11px}
-.event:last-child{border-bottom:0}
-.time{color:var(--muted);min-width:58px}
-.event.motion{color:#ff9ab0}.event.sound{color:#ffe09a}.event.info{color:#a9f4ca}
-.canvas-wrap{height:110px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#050608}
-#spectrum{width:100%;height:100%;display:block}
-.footer{color:#596675;text-align:center;font-size:9px;line-height:1.5;margin-top:15px}
-@media(max-width:680px){
- .app{padding:14px 10px 28px}
- .top{align-items:flex-start}.brand h1{font-size:19px}
- .camera{aspect-ratio:4/3;border-radius:14px}
- .controls{grid-template-columns:repeat(2,1fr)}
- .metrics{grid-template-columns:1fr 1fr 1fr}
- .value{font-size:18px}
- .layout{grid-template-columns:1fr}
+body{margin:0;background:radial-gradient(circle at 50% -20%,#17242e,#050608 45%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif}
+.app{max-width:1050px;margin:auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.kicker{font-size:9px;color:var(--muted);letter-spacing:2.5px;font-weight:800}.title{font-size:22px;font-weight:800;margin-top:3px}
+.status{border:1px solid var(--line);background:#080b0f;border-radius:99px;padding:8px 10px;font-size:10px;color:var(--muted)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#687382;margin-right:6px}.live{background:var(--green);box-shadow:0 0 12px var(--green)}
+.viewer{position:relative;background:#000;border:1px solid var(--line);border-radius:16px;overflow:hidden;aspect-ratio:16/10}
+video{width:100%;height:100%;object-fit:cover;display:block}
+#boxes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.scan{position:absolute;left:12px;top:12px;background:#050608cc;border:1px solid #ffffff18;border-radius:8px;padding:7px 9px;font-size:9px;letter-spacing:1px}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:#050608dd;color:var(--muted);font-size:12px;text-align:center;padding:25px}
+.controls{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-top:9px}
+button{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:12px;border-radius:10px;font-weight:750;font-size:11px}
+button.primary{background:var(--green);color:#06100a;border-color:var(--green)}
+button:disabled{opacity:.4}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.card{background:linear-gradient(180deg,#10151c,#0a0d12);border:1px solid var(--line);border-radius:12px;padding:12px}
+.label{font-size:9px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase}.num{font-size:24px;font-weight:850;margin-top:5px}.sub{font-size:9px;color:var(--muted);margin-top:2px}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.panel{background:#0b0f14;border:1px solid var(--line);border-radius:13px;padding:13px}
+h2{font-size:12px;margin:0 0 10px}
+.objects{display:flex;flex-wrap:wrap;gap:6px;min-height:32px}
+.tag{border:1px solid #294134;background:#0b1710;color:#9ff2bf;padding:7px 8px;border-radius:8px;font-size:10px}
+.event{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #ffffff08;font-size:10px}.event:last-child{border:0}
+.time{color:var(--muted);min-width:55px}
+.settings label{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin:12px 0 6px}
+input[type=range]{width:100%;accent-color:var(--green)}
+.note{font-size:9px;color:#667384;line-height:1.5;margin-top:10px}
+@media(max-width:700px){
+ .app{padding:10px}.viewer{aspect-ratio:4/3}.controls{grid-template-columns:1fr 1fr}
+ .grid{grid-template-columns:1fr 1fr}.lower{grid-template-columns:1fr}.title{font-size:19px}
 }
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div class="brand">
-      <small>GECE PROTOKOLÜ</small>
-      <h1>Camera Analyzer</h1>
-    </div>
-    <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Hazır</span></div>
-  </header>
+<header>
+<div><div class="kicker">GECE PROTOKOLÜ</div><div class="title">AI Vision Analyzer</div></div>
+<div class="status"><span id="dot" class="dot"></span><span id="status">OFFLINE</span></div>
+</header>
 
-  <section class="camera">
-    <video id="video" autoplay muted playsinline></video>
-    <canvas id="overlay"></canvas>
-    <div class="camera-ui">
-      <div class="badge" id="camBadge">CAMERA OFFLINE</div>
-      <div id="alert" class="alert">HAREKET ALGILANDI</div>
-    </div>
-  </section>
-
-  <div class="controls">
-    <button class="primary" id="startBtn">Kamerayı Başlat</button>
-    <button id="micBtn">Mikrofonu Başlat</button>
-    <button id="snapBtn" disabled>Ekran Görüntüsü</button>
-    <button class="danger" id="stopBtn" disabled>Durdur</button>
-  </div>
-
-  <section class="metrics">
-    <div class="card"><div class="label">Hareket</div><div class="value" id="motionValue">0%</div><div class="sub" id="motionState">Bekleniyor</div></div>
-    <div class="card"><div class="label">Ses</div><div class="value" id="dbValue">—</div><div class="sub" id="soundState">Mikrofon kapalı</div></div>
-    <div class="card"><div class="label">Işık</div><div class="value" id="lightValue">—</div><div class="sub" id="lightState">Kamera kapalı</div></div>
-  </section>
-
-  <div class="layout">
-    <section class="panel">
-      <h2>Analiz Ayarları</h2>
-      <div class="range-row">
-        <div><span>Hareket hassasiyeti</span><b id="motionSensOut">18</b></div>
-        <input id="motionSens" type="range" min="3" max="50" value="18">
-      </div>
-      <div class="range-row">
-        <div><span>Ses alarm eşiği</span><b id="soundThreshOut">55</b></div>
-        <input id="soundThresh" type="range" min="20" max="100" value="55">
-      </div>
-      <div class="range-row">
-        <div><span>Örnekleme aralığı</span><b id="intervalOut">250 ms</b></div>
-        <input id="interval" type="range" min="100" max="1000" step="50" value="250">
-      </div>
-      <button id="zoneBtn">İzleme Bölgesini Göster</button>
-    </section>
-
-    <section class="panel">
-      <h2>Ses Spektrumu</h2>
-      <div class="canvas-wrap"><canvas id="spectrum"></canvas></div>
-      <div class="sub" style="margin-top:8px">Mikrofon açıksa canlı frekans enerjisi gösterilir.</div>
-    </section>
-
-    <section class="panel" style="grid-column:1/-1">
-      <h2>Olay Günlüğü</h2>
-      <div id="events" class="events">
-        <div class="event info"><span class="time">--:--:--</span><span>Sistem başlatılmayı bekliyor.</span></div>
-      </div>
-      <button id="clearEvents" style="margin-top:10px">Günlüğü Temizle</button>
-    </section>
-  </div>
-
-  <div class="footer">
-    Analizler tarayıcı üzerinde gerçekleştirilir. Kamera ve mikrofon yalnızca izin verdiğinizde kullanılır.
-  </div>
+<div class="viewer">
+<video id="video" playsinline muted></video>
+<canvas id="boxes"></canvas>
+<div class="scan" id="scanLabel">AI VISION / IDLE</div>
+<div id="loading">Model henüz yüklenmedi.<br>Önce modeli yükleyip ardından kamerayı başlat.</div>
 </div>
 
+<div class="controls">
+<button class="primary" id="modelBtn">AI Modelini Yükle</button>
+<button id="cameraBtn" disabled>Kamera</button>
+<button id="flipBtn" disabled>Kamera Çevir</button>
+<button id="stopBtn" disabled>Durdur</button>
+</div>
+
+<div class="grid">
+<div class="card"><div class="label">Nesne</div><div class="num" id="objectCount">0</div><div class="sub">algılanan</div></div>
+<div class="card"><div class="label">İnsan</div><div class="num" id="personCount">0</div><div class="sub">kadrajda</div></div>
+<div class="card"><div class="label">FPS</div><div class="num" id="fps">0</div><div class="sub">analiz</div></div>
+<div class="card"><div class="label">Durum</div><div class="num" id="confidence">—</div><div class="sub">ortalama güven</div></div>
+</div>
+
+<div class="lower">
+<section class="panel">
+<h2>Algılanan Nesneler</h2>
+<div class="objects" id="objects"><span class="sub">Henüz nesne yok.</span></div>
+</section>
+<section class="panel settings">
+<h2>Analiz Ayarları</h2>
+<label><span>Güven eşiği</span><b id="thresholdOut">50%</b></label>
+<input id="threshold" type="range" min="10" max="90" value="50">
+<label><span>Analiz aralığı</span><b id="intervalOut">250 ms</b></label>
+<input id="interval" type="range" min="100" max="1000" step="50" value="250">
+<div class="note">Düşük güvenli tahminleri gizlemek için güven eşiğini yükseltebilirsin.</div>
+</section>
+<section class="panel" style="grid-column:1/-1">
+<h2>Olay Günlüğü</h2>
+<div id="events"><div class="event"><span class="time">--:--:--</span><span>Sistem hazır.</span></div></div>
+</section>
+</div>
+<div class="note">Model tarayıcı içinde çalışır. İlk model yüklemesinde internet bağlantısı gerekir. Kamera görüntüsü analiz için yerel olarak işlenir.</div>
+</div>
+
+<!-- TensorFlow.js + COCO-SSD -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
-const video=document.getElementById('video');
-const overlay=document.getElementById('overlay'), octx=overlay.getContext('2d');
-const spectrum=document.getElementById('spectrum'), sctx=spectrum.getContext('2d');
-const startBtn=document.getElementById('startBtn'), micBtn=document.getElementById('micBtn');
-const snapBtn=document.getElementById('snapBtn'), stopBtn=document.getElementById('stopBtn');
-const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
-const camBadge=document.getElementById('camBadge'), alertBox=document.getElementById('alert');
-const motionValue=document.getElementById('motionValue'), motionState=document.getElementById('motionState');
-const dbValue=document.getElementById('dbValue'), soundState=document.getElementById('soundState');
-const lightValue=document.getElementById('lightValue'), lightState=document.getElementById('lightState');
-const motionSens=document.getElementById('motionSens'), soundThresh=document.getElementById('soundThresh'), intervalInput=document.getElementById('interval');
-const motionSensOut=document.getElementById('motionSensOut'), soundThreshOut=document.getElementById('soundThreshOut'), intervalOut=document.getElementById('intervalOut');
-const events=document.getElementById('events');
+const video=document.getElementById('video'), canvas=document.getElementById('boxes'), ctx=canvas.getContext('2d');
+const modelBtn=document.getElementById('modelBtn'), cameraBtn=document.getElementById('cameraBtn'), flipBtn=document.getElementById('flipBtn'), stopBtn=document.getElementById('stopBtn');
+const loading=document.getElementById('loading'), statusEl=document.getElementById('status'), dot=document.getElementById('dot'), scanLabel=document.getElementById('scanLabel');
+const threshold=document.getElementById('threshold'), interval=document.getElementById('interval');
+const objectCount=document.getElementById('objectCount'), personCount=document.getElementById('personCount'), fpsEl=document.getElementById('fps'), confEl=document.getElementById('confidence'), objectsEl=document.getElementById('objects'), eventsEl=document.getElementById('events');
+const thresholdOut=document.getElementById('thresholdOut'), intervalOut=document.getElementById('intervalOut');
 
-let stream=null, micStream=null, audioCtx=null, analyser=null, audioData=null;
-let running=false, lastFrame=null, lastScan=0, alertUntil=0, zoneVisible=false;
-let motionTimer=null, micTimer=null;
+let model=null, stream=null, running=false, facing='environment', lastRun=0, frames=0, fpsStart=performance.now(), lastLabels=new Set();
 
-function now(){
-  return new Date().toLocaleTimeString('tr-TR',{hour12:false});
-}
-function logEvent(text,type='info'){
-  const row=document.createElement('div'); row.className='event '+type;
-  row.innerHTML='<span class="time">'+now()+'</span><span></span>';
-  row.lastElementChild.textContent=text;
-  events.prepend(row);
-  while(events.children.length>40) events.lastElementChild.remove();
-}
-function setStatus(text,live=false){
-  statusText.textContent=text; statusDot.classList.toggle('live',live);
-}
-function fitCanvas(){
-  const r=video.getBoundingClientRect();
-  if(!r.width)return;
-  overlay.width=Math.round(r.width*devicePixelRatio);
-  overlay.height=Math.round(r.height*devicePixelRatio);
-  octx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-}
-function motionScan(){
-  if(!running || video.readyState<2)return;
-  const nowMs=performance.now();
-  const wait=+intervalInput.value;
-  if(nowMs-lastScan<wait)return;
-  lastScan=nowMs;
+const labelsTR={
+person:'İnsan',bicycle:'Bisiklet',car:'Araba',motorcycle:'Motosiklet',airplane:'Uçak',bus:'Otobüs',train:'Tren',truck:'Kamyon',
+boat:'Tekne',traffic:'Trafik ışığı',fire:'Yangın musluğu',stop:'Dur tabelası',parking:'Park tabelası',bench:'Bank',
+bird:'Kuş',cat:'Kedi',dog:'Köpek',horse:'At',sheep:'Koyun',cow:'İnek',elephant:'Fil',bear:'Ayı',zebra:'Zebra',giraffe:'Zürafa',
+backpack:'Sırt çantası',umbrella:'Şemsiye',handbag:'Çanta',tie:'Kravat',suitcase:'Valiz',frisbee:'Frizbi',skis:'Kayak',
+snowboard:'Snowboard',sports:'Spor topu',kite:'Uçurtma',baseball:'Beyzbol',baseballbat:'Beyzbol sopası',skateboard:'Kaykay',
+surfboard:'Sörf tahtası',tennisracket:'Tenis raketi',bottle:'Şişe',wineglass:'Kadeh',cup:'Bardak',fork:'Çatal',knife:'Bıçak',
+spoon:'Kaşık',bowl:'Kase',banana:'Muz',apple:'Elma',sandwich:'Sandviç',orange:'Portakal',broccoli:'Brokoli',carrot:'Havuç',
+hotdog:'Sandviç',pizza:'Pizza',donut:'Donut',cake:'Pasta',chair:'Sandalye',couch:'Koltuk',pottedplant:'Saksı bitkisi',
+bed:'Yatak',diningtable:'Masa',toilet:'Tuvalet',tv:'TV',laptop:'Laptop',mouse:'Mouse',remote:'Kumanda',keyboard:'Klavye',
+cellphone:'Telefon',microwave:'Mikrodalga',oven:'Fırın',toaster:'Tost makinesi',sink:'Lavabo',refrigerator:'Buzdolabı',
+book:'Kitap',clock:'Saat',vase:'Vazo',scissors:'Makas',teddybear:'Oyuncak ayı',hairdrier:'Saç kurutma makinesi',toothbrush:'Diş fırçası'
+};
 
-  const w=160,h=100;
-  const c=document.createElement('canvas'); c.width=w;c.height=h;
-  const x=c.getContext('2d',{willReadFrequently:true});
-  x.drawImage(video,0,0,w,h);
-  const data=x.getImageData(0,0,w,h).data;
-
-  if(!lastFrame){lastFrame=new Uint8ClampedArray(data);return}
-  let changed=0,total=0;
-  const threshold=+motionSens.value;
-  for(let i=0;i<data.length;i+=4){
-    const lum=(data[i]*.299+data[i+1]*.587+data[i+2]*.114);
-    const prev=lastFrame[i]*.299+lastFrame[i+1]*.587+lastFrame[i+2]*.114;
-    if(Math.abs(lum-prev)>threshold)changed++;
-    total++;
-  }
-  lastFrame=new Uint8ClampedArray(data);
-
-  const pct=Math.min(100,changed/total*100*4);
-  motionValue.textContent=pct.toFixed(1)+'%';
-  const detected=pct>=8;
-  motionState.textContent=detected?'Hareket algılandı':'Sakin';
-  if(detected && performance.now()>alertUntil){
-    alertUntil=performance.now()+1800;
-    alertBox.classList.add('show');
-    logEvent('Hareket algılandı — değişim '+pct.toFixed(1)+'%','motion');
-    setTimeout(()=>alertBox.classList.remove('show'),1500);
-  }
-  drawOverlay(detected);
+function now(){return new Date().toLocaleTimeString('tr-TR',{hour12:false})}
+function log(text){
+ const d=document.createElement('div');d.className='event';
+ const t=document.createElement('span');t.className='time';t.textContent=now();
+ const x=document.createElement('span');x.textContent=text;d.append(t,x);eventsEl.prepend(d);
+ while(eventsEl.children.length>25)eventsEl.lastElementChild.remove();
 }
-function drawOverlay(detected){
-  const r=video.getBoundingClientRect();
-  octx.clearRect(0,0,r.width,r.height);
-  if(zoneVisible){
-    octx.strokeStyle=detected?'#ff5577':'#7cf2b1';
-    octx.lineWidth=2;
-    octx.setLineDash([8,6]);
-    octx.strokeRect(r.width*.12,r.height*.12,r.width*.76,r.height*.76);
-    octx.setLineDash([]);
-  }
+function status(t,live=false){statusEl.textContent=t;dot.classList.toggle('live',live)}
+function resize(){canvas.width=video.clientWidth*devicePixelRatio;canvas.height=video.clientHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+function draw(predictions){
+ const w=video.clientWidth,h=video.clientHeight;ctx.clearRect(0,0,w,h);
+ const sx=w/video.videoWidth,sy=h/video.videoHeight;
+ predictions.forEach(p=>{
+   const [x,y,bw,bh]=p.bbox;
+   const xx=x*sx,yy=y*sy,ww=bw*sx,hh=bh*sy;
+   ctx.strokeStyle='#7cf2b1';ctx.lineWidth=2;ctx.strokeRect(xx,yy,ww,hh);
+   const label=(labelsTR[p.class]||p.class)+' '+Math.round(p.score*100)+'%';
+   ctx.font='700 11px -apple-system,BlinkMacSystemFont,Arial';
+   const tw=ctx.measureText(label).width+14;
+   ctx.fillStyle='#07100bdd';ctx.fillRect(xx,Math.max(0,yy-20),tw,20);
+   ctx.fillStyle='#9ff2bf';ctx.fillText(label,xx+7,Math.max(13,yy-6));
+ });
 }
-function lightScan(){
-  if(!running)return;
-  const c=document.createElement('canvas');c.width=64;c.height=48;
-  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(video,0,0,64,48);
-  const d=x.getImageData(0,0,64,48).data;
-  let sum=0;
-  for(let i=0;i<d.length;i+=4)sum+=.299*d[i]+.587*d[i+1]+.114*d[i+2];
-  const p=sum/(64*48)/255*100;
-  lightValue.textContent=p.toFixed(0)+'%';
-  lightState.textContent=p<12?'Çok karanlık':p<30?'Düşük ışık':p<65?'Normal':'Parlak';
+function updateUI(predictions){
+ const p=predictions.filter(x=>x.score>=+threshold.value/100);
+ objectCount.textContent=p.length;
+ personCount.textContent=p.filter(x=>x.class==='person').length;
+ let avg=p.length?p.reduce((a,x)=>a+x.score,0)/p.length:0;
+ confEl.textContent=p.length?Math.round(avg*100)+'%':'—';
+ const counts={};p.forEach(x=>counts[x.class]=(counts[x.class]||0)+1);
+ objectsEl.innerHTML='';
+ Object.keys(counts).sort().forEach(k=>{
+   const s=document.createElement('span');s.className='tag';s.textContent=(labelsTR[k]||k)+(counts[k]>1?' ×'+counts[k]:'');objectsEl.appendChild(s)
+ });
+ if(!p.length)objectsEl.innerHTML='<span class="sub">Nesne algılanmadı.</span>';
+ const labels=new Set(p.map(x=>x.class));
+ for(const x of labels)if(!lastLabels.has(x))log((labelsTR[x]||x)+' algılandı.');
+ lastLabels=labels;
+}
+async function detect(){
+ if(!running||!model||video.readyState<2)return;
+ const t=performance.now();
+ if(t-lastRun<+interval.value){requestAnimationFrame(detect);return}
+ lastRun=t;
+ try{
+   const predictions=await model.detect(video,20,'bbox');
+   const filtered=predictions.filter(x=>x.score>=+threshold.value/100);
+   draw(filtered);updateUI(filtered);
+   frames++;
+   if(t-fpsStart>=1000){fpsEl.textContent=frames;frames=0;fpsStart=t}
+ }catch(e){console.error(e)}
+ requestAnimationFrame(detect);
+}
+async function loadModel(){
+ modelBtn.disabled=true;loading.style.display='grid';loading.innerHTML='AI modeli yükleniyor...<br>İlk açılışta biraz sürebilir.';
+ try{
+   await tf.ready();
+   model=await cocoSsd.load({base:'lite_mobilenet_v2'});
+   loading.style.display='none';cameraBtn.disabled=false;status('MODEL HAZIR',true);
+   modelBtn.textContent='Model Hazır';log('COCO-SSD nesne tespit modeli yüklendi.');
+ }catch(e){
+   modelBtn.disabled=false;loading.innerHTML='Model yüklenemedi.<br>İnternet bağlantısını kontrol et.';
+   status('MODEL HATASI');log('Model yükleme hatası: '+e.message);
+ }
 }
 async function startCamera(){
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
-    video.srcObject=stream; await video.play();
-    running=true; lastFrame=null; startBtn.disabled=true;stopBtn.disabled=false;snapBtn.disabled=false;
-    camBadge.textContent='CAMERA ONLINE';setStatus('Analiz aktif',true);
-    logEvent('Kamera başlatıldı.','info');
-    fitCanvas();
-  }catch(e){
-    logEvent('Kamera izni alınamadı: '+e.message,'motion');
-    setStatus('Kamera izni gerekli',false);
-  }
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream;await video.play();running=true;
+  cameraBtn.disabled=true;flipBtn.disabled=false;stopBtn.disabled=false;scanLabel.textContent='AI VISION / LIVE';
+  status('AI ANALİZ AKTİF',true);resize();log('Kamera başlatıldı.');requestAnimationFrame(detect);
+ }catch(e){status('KAMERA İZNİ GEREKLİ');log('Kamera açılamadı: '+e.message)}
 }
-async function startMic(){
-  try{
-    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    const src=audioCtx.createMediaStreamSource(micStream);
-    analyser=audioCtx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=.75;
-    src.connect(analyser); audioData=new Uint8Array(analyser.fftSize);
-    micBtn.textContent='Mikrofon Açık';micBtn.disabled=true;
-    soundState.textContent='Dinleniyor'; logEvent('Mikrofon analizi başlatıldı.','info');
-    drawSpectrum();
-  }catch(e){logEvent('Mikrofon izni alınamadı: '+e.message,'sound')}
+async function flip(){
+ if(!stream)return;stream.getTracks().forEach(t=>t.stop());
+ facing=facing==='environment'?'user':'environment';await startCamera();log('Kamera yönü değiştirildi.')
 }
-function drawSpectrum(){
-  if(!analyser)return;
-  analyser.getByteFrequencyData(audioData);
-  let sum=0;for(const v of audioData)sum+=v*v;
-  const rms=Math.sqrt(sum/audioData.length)/255;
-  const db=Math.max(0,Math.min(100,20*Math.log10(Math.max(rms,.00001))+100));
-  dbValue.textContent=db.toFixed(0)+' dB';
-  const threshold=+soundThresh.value;
-  if(db>=threshold){
-    soundState.textContent='Ses eşiği aşıldı';
-    if(performance.now()>alertUntil){
-      alertUntil=performance.now()+1200;
-      alertBox.textContent='YÜKSEK SES ALGILANDI';alertBox.classList.add('show');
-      logEvent('Ses eşiği aşıldı — '+db.toFixed(0)+' dB','sound');
-      setTimeout(()=>{alertBox.classList.remove('show');alertBox.textContent='HAREKET ALGILANDI'},1000);
-    }
-  }else soundState.textContent='Normal';
-
-  const w=spectrum.clientWidth,h=spectrum.clientHeight;
-  const dpr=devicePixelRatio||1;
-  if(spectrum.width!==w*dpr){spectrum.width=w*dpr;spectrum.height=h*dpr;sctx.setTransform(dpr,0,0,dpr,0,0)}
-  sctx.clearRect(0,0,w,h);
-  const bars=Math.min(80,Math.floor(audioData.length/3));
-  const bw=w/bars;
-  for(let i=0;i<bars;i++){
-    const v=audioData[i*3]/255;
-    sctx.fillStyle=v>.75?'#ff5577':v>.45?'#ffd166':'#7cf2b1';
-    sctx.fillRect(i*bw,h-v*h,bw-1,v*h);
-  }
-  requestAnimationFrame(drawSpectrum);
+function stop(){
+ running=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;
+ cameraBtn.disabled=false;flipBtn.disabled=true;stopBtn.disabled=true;status('DURDURULDU');scanLabel.textContent='AI VISION / IDLE';
+ ctx.clearRect(0,0,video.clientWidth,video.clientHeight);objectCount.textContent='0';personCount.textContent='0';fpsEl.textContent='0';confEl.textContent='—';
+ objectsEl.innerHTML='<span class="sub">Nesne yok.</span>';log('Sistem durduruldu.')
 }
-function stopAll(){
-  running=false;
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
-  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
-  if(audioCtx){audioCtx.close();audioCtx=null}
-  video.srcObject=null;lastFrame=null;
-  startBtn.disabled=false;stopBtn.disabled=true;snapBtn.disabled=true;
-  micBtn.disabled=false;micBtn.textContent='Mikrofonu Başlat';
-  camBadge.textContent='CAMERA OFFLINE';setStatus('Durduruldu',false);
-  motionValue.textContent='0%';dbValue.textContent='—';lightValue.textContent='—';
-  logEvent('Sistem durduruldu.','info');
-}
-function screenshot(){
-  if(!running)return;
-  const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;
-  const x=c.getContext('2d');x.drawImage(video,0,0,c.width,c.height);
-  const a=document.createElement('a');a.href=c.toDataURL('image/jpeg',.9);a.download='gece-protokolu-'+Date.now()+'.jpg';a.click();
-  logEvent('Kamera görüntüsü kaydedildi.','info');
-}
-startBtn.onclick=startCamera;micBtn.onclick=startMic;stopBtn.onclick=stopAll;snapBtn.onclick=screenshot;
-document.getElementById('zoneBtn').onclick=()=>{zoneVisible=!zoneVisible;document.getElementById('zoneBtn').textContent=zoneVisible?'İzleme Bölgesini Gizle':'İzleme Bölgesini Göster';};
-document.getElementById('clearEvents').onclick=()=>{events.innerHTML='';logEvent('Olay günlüğü temizlendi.','info')};
-motionSens.oninput=()=>motionSensOut.textContent=motionSens.value;
-soundThresh.oninput=()=>soundThreshOut.textContent=soundThresh.value;
-intervalInput.oninput=()=>intervalOut.textContent=intervalInput.value+' ms';
-window.addEventListener('resize',fitCanvas);
-setInterval(()=>{if(running){motionScan();lightScan()}},50);
+modelBtn.onclick=loadModel;cameraBtn.onclick=startCamera;flipBtn.onclick=flip;stopBtn.onclick=stop;
+threshold.oninput=()=>thresholdOut.textContent=threshold.value+'%';
+interval.oninput=()=>intervalOut.textContent=interval.value+' ms';
+window.addEventListener('resize',resize);
+if(!navigator.mediaDevices?.getUserMedia){loading.innerHTML='Bu tarayıcı kamera erişimini desteklemiyor.<br>Safari/Chrome gibi güncel bir tarayıcı kullan.';modelBtn.disabled=true}
 </script>
 </body>
 </html>
