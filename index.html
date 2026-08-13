@@ -1,981 +1,317 @@
 <!DOCTYPE html>
-<html lang="tr" class="dark">
+<html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profesyonel DTMF Analizör</title>
-    <!-- Tailwind CSS (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        gray: {
-                            900: '#111827',
-                            800: '#1f2937',
-                            700: '#374151',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['system-ui', '-apple-system', 'sans-serif'],
-                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body { background-color: #0f1115; color: #e5e7eb; }
-        .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(75, 85, 99, 0.4); }
-        .glow-text { text-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
-        .glow-text-success { text-shadow: 0 0 20px rgba(74, 222, 128, 0.6); }
-        .glow-text-error { text-shadow: 0 0 20px rgba(248, 113, 113, 0.6); }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-
-        .tab-btn.active { border-bottom: 2px solid #38bdf8; color: #38bdf8; }
-        canvas { display: block; width: 100%; height: 100%; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050608">
+<title>Gece Protokolü — Camera Analyzer</title>
+<style>
+:root{
+  --bg:#050608;--panel:#0b0e13;--panel2:#10151c;--line:#1d2631;
+  --text:#edf2f7;--muted:#8b98a8;--accent:#7cf2b1;--warn:#ffd166;--danger:#ff5577;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:radial-gradient(circle at 50% -10%,#16212b 0,#050608 42%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,Arial,sans-serif;min-height:100vh}
+button,input{font:inherit}
+.app{max-width:980px;margin:auto;padding:18px 14px 34px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:2.2px;font-weight:700}
+.brand h1{font-size:22px;margin:3px 0 0;letter-spacing:.3px}
+.status{display:flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#090c10;color:var(--muted);font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;background:#687382}.dot.live{background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.camera{position:relative;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden;aspect-ratio:16/10;box-shadow:0 18px 55px #0008}
+video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(1)}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.camera-ui{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
+.badge{align-self:flex-start;background:#050608bb;border:1px solid #ffffff18;padding:7px 9px;border-radius:8px;font-size:10px;letter-spacing:1.2px}
+.alert{align-self:center;background:#ff5577e8;color:#fff;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;letter-spacing:.5px;opacity:0;transform:translateY(-5px);transition:.18s}
+.alert.show{opacity:1;transform:none}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+button{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:12px 9px;border-radius:11px;font-weight:700;font-size:12px}
+button:active{transform:scale(.98)}
+button.primary{background:var(--accent);color:#07100b;border-color:var(--accent)}
+button.danger{color:#ff8aa1}
+button:disabled{opacity:.45}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:13px;padding:13px}
+.label{color:var(--muted);font-size:9px;letter-spacing:1.3px;text-transform:uppercase}
+.value{font-size:23px;font-weight:800;margin-top:6px}
+.sub{font-size:10px;color:var(--muted);margin-top:3px}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.panel{background:linear-gradient(180deg,#0d1117,#090c11);border:1px solid var(--line);border-radius:15px;padding:14px}
+.panel h2{font-size:13px;margin:0 0 13px}
+.range-row{margin:13px 0}
+.range-row>div{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:8px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.events{max-height:300px;overflow:auto}
+.event{display:flex;gap:9px;padding:10px 0;border-bottom:1px solid #ffffff08;font-size:11px}
+.event:last-child{border-bottom:0}
+.time{color:var(--muted);min-width:58px}
+.event.motion{color:#ff9ab0}.event.sound{color:#ffe09a}.event.info{color:#a9f4ca}
+.canvas-wrap{height:110px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#050608}
+#spectrum{width:100%;height:100%;display:block}
+.footer{color:#596675;text-align:center;font-size:9px;line-height:1.5;margin-top:15px}
+@media(max-width:680px){
+ .app{padding:14px 10px 28px}
+ .top{align-items:flex-start}.brand h1{font-size:19px}
+ .camera{aspect-ratio:4/3;border-radius:14px}
+ .controls{grid-template-columns:repeat(2,1fr)}
+ .metrics{grid-template-columns:1fr 1fr 1fr}
+ .value{font-size:18px}
+ .layout{grid-template-columns:1fr}
+}
+</style>
 </head>
-<body class="min-h-screen flex flex-col font-sans text-sm md:text-base">
-
-    <!-- Başlangıç Ekranı (Mikrofon İzni İçin) -->
-    <div id="start-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-95 backdrop-blur-sm">
-        <div class="text-center p-8 glass-panel rounded-2xl max-w-md mx-4 shadow-2xl">
-            <div id="icon-mic-large" class="mx-auto w-16 h-16 text-sky-400 mb-6"></div>
-            <h1 class="text-2xl font-bold mb-4 text-white">DTMF Analizör</h1>
-            <p class="text-gray-400 mb-8">Bu uygulama yüksek doğruluklu sinyal analizi yapar. Çalışması için mikrofon erişimine izin vermeniz gerekmektedir.</p>
-            <button id="btn-start" class="w-full py-3 px-6 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2">
-                <div id="icon-play" class="w-5 h-5"></div>
-                Sistemi Başlat
-            </button>
-            <p id="start-error" class="text-red-400 mt-4 hidden text-sm"></p>
-        </div>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <small>GECE PROTOKOLÜ</small>
+      <h1>Camera Analyzer</h1>
     </div>
-
-    <!-- Üst Bar -->
-    <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div id="icon-activity" class="w-6 h-6 text-sky-400"></div>
-                <h1 class="font-bold text-lg tracking-wider">DTMF<span class="text-sky-400">ANALYZER</span></h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div id="mic-status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-800 border border-gray-700 text-xs font-mono">
-                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse" id="mic-indicator"></div>
-                    <span id="mic-text">Mikrofon Kapalı</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Ana İçerik -->
-    <main class="flex-1 max-w-7xl mx-auto w-full p-4 flex flex-col gap-6">
-        
-        <!-- Sekmeler -->
-        <div class="flex border-b border-gray-800 gap-6 px-2">
-            <button class="tab-btn active pb-2 font-medium transition-colors hover:text-sky-300" data-target="panel-monitor">Canlı Analiz</button>
-            <button class="tab-btn pb-2 font-medium text-gray-400 hover:text-sky-300 transition-colors" data-target="panel-teach">Öğretme Modu</button>
-            <button class="tab-btn pb-2 font-medium text-gray-400 hover:text-sky-300 transition-colors" data-target="panel-data">Veri & Ayarlar</button>
-        </div>
-
-        <!-- PANEL: Canlı Analiz -->
-        <div id="panel-monitor" class="tab-panel flex flex-col lg:flex-row gap-6">
-            <!-- Sol: Sonuç Ekranı -->
-            <div class="w-full lg:w-1/3 flex flex-col gap-6">
-                <!-- Ana Gösterge -->
-                <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
-                    <div class="absolute top-4 left-4 text-xs font-mono text-gray-400" id="status-text">Sinyal Bekleniyor...</div>
-                    <div class="absolute top-4 right-4 text-xs font-mono text-gray-400" id="confidence-text">CONF: 0%</div>
-                    
-                    <div id="main-digit" class="text-9xl font-bold font-mono text-gray-700 transition-all duration-300">-</div>
-                    
-                    <div class="w-full mt-8 flex justify-between px-4 font-mono text-sm">
-                        <div class="text-center">
-                            <div class="text-gray-500 text-xs mb-1">LOW GROUP</div>
-                            <div id="display-low" class="text-sky-300">---.- Hz</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-gray-500 text-xs mb-1">HIGH GROUP</div>
-                            <div id="display-high" class="text-sky-300">----.- Hz</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Durum Detayları -->
-                <div class="glass-panel rounded-2xl p-5 flex flex-col gap-3 font-mono text-xs">
-                    <h3 class="text-gray-400 uppercase tracking-widest text-[10px] mb-2 font-sans font-bold">Gerçek Zamanlı Sinyal Metrikleri</h3>
-                    <div class="flex justify-between border-b border-gray-800 pb-2">
-                        <span class="text-gray-500">Sinyal Gücü (RMS):</span>
-                        <span id="metric-rms">0.00</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-800 pb-2">
-                        <span class="text-gray-500">Twist (High/Low Ratio):</span>
-                        <span id="metric-twist">N/A</span>
-                    </div>
-                    <div class="flex justify-between border-b border-gray-800 pb-2">
-                        <span class="text-gray-500">Gürültü Kirliliği (SNR):</span>
-                        <span id="metric-snr">N/A</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Zaman Stabilizasyonu:</span>
-                        <span id="metric-stability">0 / 3 frame</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sağ: Grafikler ve Geçmiş -->
-            <div class="w-full lg:w-2/3 flex flex-col gap-6">
-                <!-- Grafikler -->
-                <div class="glass-panel rounded-2xl p-5 h-64 flex flex-col relative">
-                    <h3 class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-4">Frekans Spektrumu (Goertzel Enerji)</h3>
-                    <div class="flex-1 flex gap-4">
-                        <div class="w-1/2 relative h-full">
-                            <canvas id="canvas-low"></canvas>
-                            <div class="absolute bottom-0 left-0 w-full text-center text-[10px] text-gray-500 mt-2">LOW GROUP (697-941 Hz)</div>
-                        </div>
-                        <div class="w-1/2 relative h-full">
-                            <canvas id="canvas-high"></canvas>
-                            <div class="absolute bottom-0 left-0 w-full text-center text-[10px] text-gray-500 mt-2">HIGH GROUP (1209-1477 Hz)</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Geçmiş -->
-                <div class="glass-panel rounded-2xl p-5 flex-1 flex flex-col">
-                    <h3 class="text-gray-400 text-xs uppercase tracking-widest font-bold mb-4">Algılama Geçmişi</h3>
-                    <div id="history-container" class="flex-1 font-mono text-lg break-all text-gray-300 leading-relaxed bg-gray-900/50 p-4 rounded-xl border border-gray-800 overflow-y-auto max-h-48">
-                        <!-- Geçmiş buraya eklenecek -->
-                    </div>
-                    <div class="mt-4 flex justify-end">
-                        <button id="btn-clear-history" class="text-xs text-gray-500 hover:text-white transition-colors">Geçmişi Temizle</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PANEL: Öğretme Modu -->
-        <div id="panel-teach" class="tab-panel hidden flex flex-col gap-6">
-            <div class="glass-panel rounded-2xl p-6">
-                <h2 class="text-xl font-bold mb-2">Telefonunuzu Sisteme Öğretin</h2>
-                <p class="text-gray-400 text-sm mb-6">Her telefonun hoparlörü ve DTMF üreteci standart frekanslardan çok küçük sapmalar gösterebilir. Daha yüksek doğruluk için kendi cihazınızın frekans profilini kaydedin.</p>
-                
-                <div class="grid grid-cols-3 md:grid-cols-4 gap-4 mb-8" id="teach-grid">
-                    <!-- Tuşlar JS ile oluşturulacak -->
-                </div>
-
-                <div id="teach-active-zone" class="hidden border border-sky-500/30 bg-sky-900/10 rounded-xl p-6 flex flex-col items-center">
-                    <h3 class="text-sky-400 font-bold mb-2 text-lg" id="teach-target-title">1 Tuşunu Öğretiliyor</h3>
-                    <p class="text-sm text-gray-400 mb-6 text-center">Telefonunuzdan <strong class="text-white text-lg" id="teach-target-key">1</strong> tuşuna uzun basın ve sinyal stabil olana kadar bekleyin.</p>
-                    
-                    <div class="flex gap-8 font-mono mb-6 w-full max-w-md justify-between bg-gray-900 p-4 rounded-lg border border-gray-800">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">ÖLÇÜLEN LOW</div>
-                            <div id="teach-val-low" class="text-xl text-white">---.- Hz</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">ÖLÇÜLEN HIGH</div>
-                            <div id="teach-val-high" class="text-xl text-white">----.- Hz</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">KALİTE</div>
-                            <div id="teach-val-quality" class="text-xl text-white">-%</div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex gap-4">
-                        <button id="btn-teach-cancel" class="px-6 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-colors">İptal</button>
-                        <button id="btn-teach-save" class="px-6 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors opacity-50 cursor-not-allowed" disabled>Profili Kaydet</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-panel rounded-2xl p-6">
-                <h3 class="text-lg font-bold mb-4 text-emerald-400">Kayıtlı Profiller</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm font-mono">
-                        <thead class="text-xs text-gray-400 border-b border-gray-700">
-                            <tr>
-                                <th class="pb-3">Tuş</th>
-                                <th class="pb-3">Referans (Standart)</th>
-                                <th class="pb-3">Kayıtlı (Ölçülen)</th>
-                                <th class="pb-3">Fark</th>
-                                <th class="pb-3 text-right">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="profiles-table-body" class="divide-y divide-gray-800/50">
-                            <!-- JS ile doldurulacak -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 text-right">
-                    <button id="btn-reset-profiles" class="text-xs text-red-400 hover:text-red-300">Tüm Öğrenilmiş Profilleri Sıfırla (Standarta Dön)</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- PANEL: Veri & Ayarlar -->
-        <div id="panel-data" class="tab-panel hidden flex flex-col md:flex-row gap-6">
-            <div class="w-full md:w-1/2 flex flex-col gap-6">
-                <div class="glass-panel rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <div id="icon-settings" class="w-5 h-5"></div> Ayarlar
-                    </h3>
-                    <div class="space-y-4 text-sm">
-                        <div>
-                            <label class="block text-gray-400 mb-1">Algılama Hassasiyeti</label>
-                            <select id="setting-sensitivity" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white outline-none focus:border-sky-500">
-                                <option value="low">Düşük (Çok fazla ses kabul eder, Yanlış tuş riski yüksek)</option>
-                                <option value="medium">Orta</option>
-                                <option value="high" selected>Yüksek (Varsayılan - Doğruluk öncelikli)</option>
-                                <option value="strict">Çok Yüksek (Sadece mükemmel sinyalleri kabul eder)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-gray-400 mb-1">Minimum Confidence (%)</label>
-                            <input type="range" id="setting-confidence" min="50" max="99" value="85" class="w-full accent-sky-500">
-                            <div class="text-right text-xs text-sky-400 font-mono mt-1" id="val-confidence">85%</div>
-                        </div>
-                        <div class="p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg text-xs text-blue-200">
-                            <strong>Not:</strong> Hassasiyet ayarları sadece bellekteki karar mekanizmasını etkiler. Ses işleme her zaman en yüksek kalitede yapılır.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="w-full md:w-1/2 flex flex-col gap-6">
-                <div class="glass-panel rounded-2xl p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
-                        <div id="icon-database" class="w-5 h-5"></div> Veri Yönetimi
-                    </h3>
-                    <p class="text-xs text-gray-400 mb-4">Tüm veriler tarayıcınızın localStorage biriminde saklanır. Başka bir cihaza aktarmak için dışa aktarabilirsiniz.</p>
-                    <div class="flex gap-4 mb-4">
-                        <button id="btn-export" class="flex-1 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                            <div id="icon-download" class="w-4 h-4"></div> Dışa Aktar
-                        </button>
-                        <button id="btn-import" class="flex-1 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                            <div id="icon-upload" class="w-4 h-4"></div> İçe Aktar
-                        </button>
-                    </div>
-                    <textarea id="data-io" class="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-2 font-mono text-xs text-gray-300 outline-none focus:border-sky-500" placeholder="JSON verisi buraya gelecek..."></textarea>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- SVG Icon Generator Script -->
-    <script>
-        const icons = {
-            'icon-mic-large': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>`,
-            'icon-play': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
-            'icon-activity': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>`,
-            'icon-settings': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
-            'icon-database': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>`,
-            'icon-download': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
-            'icon-upload': `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`
-        };
-        for (const [id, svg] of Object.entries(icons)) {
-            const el = document.getElementById(id);
-            if(el) el.innerHTML = svg;
-        }
-    </script>
-
-    <!-- Ana Uygulama Mantığı -->
-    <script>
-        /* =========================================================================
-           1. YAPILANDIRMA VE SABİTLER
-           ========================================================================= */
-        const CONFIG = {
-            FFT_SIZE: 2048, // Web Audio buffer boyutu
-            LOW_FREQS: [697, 770, 852, 941],
-            HIGH_FREQS: [1209, 1336, 1477],
-            DTMF_KEYS: [
-                { key: '1', low: 697, high: 1209 }, { key: '2', low: 697, high: 1336 }, { key: '3', low: 697, high: 1477 },
-                { key: '4', low: 770, high: 1209 }, { key: '5', low: 770, high: 1336 }, { key: '6', low: 770, high: 1477 },
-                { key: '7', low: 852, high: 1209 }, { key: '8', low: 852, high: 1336 }, { key: '9', low: 852, high: 1477 },
-                { key: '*', low: 941, high: 1209 }, { key: '0', low: 941, high: 1336 }, { key: '#', low: 941, high: 1477 }
-            ],
-            SENSITIVITY: {
-                low:    { minPower: 0.0005, maxTwist: 12, minSnr: 2, stableFrames: 2 },
-                medium: { minPower: 0.001,  maxTwist: 10, minSnr: 4, stableFrames: 3 },
-                high:   { minPower: 0.003,  maxTwist: 8,  minSnr: 6, stableFrames: 3 }, // Varsayılan, yanlış pozitifleri önler
-                strict: { minPower: 0.008,  maxTwist: 5,  minSnr: 8, stableFrames: 4 }
-            },
-            STORAGE_KEY: 'dtmf_profiles_v1'
-        };
-
-        /* =========================================================================
-           2. MATEMATİK VE GOERTZEL ALGORİTMASI
-           ========================================================================= */
-        
-        /**
-         * Standart Goertzel Algoritması (Bant enerjisini ölçmek için)
-         * Belirli bir frekansın sinyal içerisindeki gücünü hesaplar.
-         */
-        function goertzel(samples, targetFreq, sampleRate) {
-            const N = samples.length;
-            const k = Math.round(0.5 + (N * targetFreq) / sampleRate);
-            const omega = (2.0 * Math.PI * k) / N;
-            const cosine = Math.cos(omega);
-            const coeff = 2.0 * cosine;
-            
-            let q0 = 0, q1 = 0, q2 = 0;
-            for (let i = 0; i < N; i++) {
-                q0 = coeff * q1 - q2 + samples[i];
-                q2 = q1;
-                q1 = q0;
-            }
-            // Güç (Magnitude Squared)
-            return (q1 * q1) + (q2 * q2) - (q1 * q2 * coeff);
-        }
-
-        /**
-         * Hassas Goertzel (Fraksiyonel Frekans Ölçümü İçin)
-         * Yuvarlama yapmadan (k kullanmadan) doğrudan omega üzerinden hesaplar.
-         * Öğretme modunda pik frekansı .1 Hz hassasiyetle bulmak için kullanılır.
-         */
-        function goertzelExact(samples, freq, sampleRate) {
-            const omega = (2.0 * Math.PI * freq) / sampleRate;
-            const cosine = Math.cos(omega);
-            const coeff = 2.0 * cosine;
-            
-            let q0 = 0, q1 = 0, q2 = 0;
-            for (let i = 0; i < samples.length; i++) {
-                q0 = coeff * q1 - q2 + samples[i];
-                q2 = q1;
-                q1 = q0;
-            }
-            return (q1 * q1) + (q2 * q2) - (q1 * q2 * coeff);
-        }
-
-        /**
-         * Verilen baz frekans etrafında dar bir tarama yaparak gerçek tepe noktasını bulur.
-         * Örn: 697 çevresinde tarama yaparak 697.2 Hz sonucunu döndürür.
-         */
-        function findExactPeak(samples, sampleRate, baseFreq, searchWindow = 15, step = 0.2) {
-            let maxPower = 0;
-            let bestFreq = baseFreq;
-            for (let f = baseFreq - searchWindow; f <= baseFreq + searchWindow; f += step) {
-                let power = goertzelExact(samples, f, sampleRate);
-                if (power > maxPower) {
-                    maxPower = power;
-                    bestFreq = f;
-                }
-            }
-            return { freq: bestFreq, power: maxPower };
-        }
-
-        /**
-         * Ses verisinin genel RMS (Root Mean Square) değerini hesaplar. (Sinyal gücü)
-         */
-        function calculateRMS(samples) {
-            let sum = 0;
-            for (let i = 0; i < samples.length; i++) {
-                sum += samples[i] * samples[i];
-            }
-            return Math.sqrt(sum / samples.length);
-        }
-
-        /* =========================================================================
-           3. PROFİL VE VERİ YÖNETİMİ
-           ========================================================================= */
-        class ProfileManager {
-            constructor() {
-                this.profiles = {};
-                this.load();
-                this.ensureDefaults();
-            }
-
-            ensureDefaults() {
-                let updated = false;
-                CONFIG.DTMF_KEYS.forEach(k => {
-                    if (!this.profiles[k.key]) {
-                        this.profiles[k.key] = {
-                            key: k.key,
-                            lowFrequency: k.low,
-                            highFrequency: k.high,
-                            isCustom: false
-                        };
-                        updated = true;
-                    }
-                });
-                if (updated) this.save();
-            }
-
-            load() {
-                try {
-                    const data = localStorage.getItem(CONFIG.STORAGE_KEY);
-                    if (data) this.profiles = JSON.parse(data);
-                } catch (e) {
-                    console.error("Profil yükleme hatası", e);
-                }
-            }
-
-            save() {
-                localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(this.profiles));
-                updateProfilesTable(); // UI Güncelle
-            }
-
-            reset() {
-                this.profiles = {};
-                this.ensureDefaults();
-            }
-
-            updateCustom(key, lowF, highF) {
-                this.profiles[key] = {
-                    key: key,
-                    lowFrequency: Number(lowF.toFixed(2)),
-                    highFrequency: Number(highF.toFixed(2)),
-                    isCustom: true,
-                    updatedAt: new Date().toISOString()
-                };
-                this.save();
-            }
-
-            getJSON() {
-                return JSON.stringify(this.profiles, null, 2);
-            }
-
-            importJSON(jsonString) {
-                try {
-                    const data = JSON.parse(jsonString);
-                    if (typeof data === 'object') {
-                        this.profiles = data;
-                        this.ensureDefaults();
-                        return true;
-                    }
-                } catch (e) {
-                    return false;
-                }
-            }
-        }
-        const profileManager = new ProfileManager();
-
-        /* =========================================================================
-           4. DTMF ALGILAMA MOTORU (ÇEKİRDEK)
-           ========================================================================= */
-        class DTMFEngine {
-            constructor() {
-                this.audioContext = null;
-                this.analyser = null;
-                this.stream = null;
-                this.isRunning = false;
-                this.lastMatchedKey = null;
-                this.stableCount = 0;
-                
-                // Ayarlar
-                this.sensitivityKey = 'high';
-                this.minConfidenceConf = 85;
-
-                // UI Referansları
-                this.cLow = document.getElementById('canvas-low');
-                this.cHigh = document.getElementById('canvas-high');
-                this.ctxLow = this.cLow.getContext('2d');
-                this.ctxHigh = this.cHigh.getContext('2d');
-                
-                // Öğretme Modu State
-                this.teachModeActive = false;
-                this.teachTargetKey = null;
-                this.teachData = { low: 0, high: 0, quality: 0, samples: [] };
-            }
-
-            async start() {
-                try {
-                    this.stream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: { 
-                            echoCancellation: false, 
-                            noiseSuppression: false, 
-                            autoGainControl: false 
-                        } 
-                    });
-                    
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = this.audioContext.createMediaStreamSource(this.stream);
-                    
-                    this.analyser = this.audioContext.createAnalyser();
-                    this.analyser.fftSize = CONFIG.FFT_SIZE;
-                    this.analyser.smoothingTimeConstant = 0.0;
-                    
-                    source.connect(this.analyser);
-                    
-                    this.isRunning = true;
-                    this.processFrame();
-                    
-                    document.getElementById('mic-indicator').classList.remove('bg-red-500');
-                    document.getElementById('mic-indicator').classList.add('bg-green-500');
-                    document.getElementById('mic-text').innerText = 'Mikrofon Aktif';
-                    document.getElementById('start-screen').style.display = 'none';
-                    
-                    resizeCanvas();
-                    
-                } catch (err) {
-                    console.error(err);
-                    document.getElementById('start-error').innerText = "Mikrofon izni reddedildi veya bulunamadı.";
-                    document.getElementById('start-error').classList.remove('hidden');
-                }
-            }
-
-            processFrame() {
-                if (!this.isRunning) return;
-                
-                requestAnimationFrame(() => this.processFrame());
-
-                const samples = new Float32Array(this.analyser.fftSize);
-                this.analyser.getFloatTimeDomainData(samples);
-                
-                const sampleRate = this.audioContext.sampleRate;
-                const rms = calculateRMS(samples);
-                const settings = CONFIG.SENSITIVITY[this.sensitivityKey];
-
-                // 1. Her grubun frekans güçlerini hesapla
-                let lowResults = CONFIG.LOW_FREQS.map(f => ({ freq: f, power: goertzel(samples, f, sampleRate) }));
-                let highResults = CONFIG.HIGH_FREQS.map(f => ({ freq: f, power: goertzel(samples, f, sampleRate) }));
-
-                // UI İçin Çizim (Sürekli güncellenir)
-                drawSpectrum(this.ctxLow, this.cLow, lowResults);
-                drawSpectrum(this.ctxHigh, this.cHigh, highResults);
-
-                // Gürültü kapısı (Çok sessizse işlem yapma)
-                if (rms < settings.minPower) {
-                    this.resetDetection("Sinyal Bekleniyor...");
-                    updateMetrics(rms, 0, 0, 0);
-                    return;
-                }
-
-                // 2. Gruplardaki en güçlü frekansları bul
-                lowResults.sort((a, b) => b.power - a.power);
-                highResults.sort((a, b) => b.power - a.power);
-
-                const maxLow = lowResults[0];
-                const maxHigh = highResults[0];
-                const secondLow = lowResults[1];
-                const secondHigh = highResults[1];
-
-                // 3. Güç kontrolü ve Gürültü (Harmonik) Kirliliği
-                // Eğer ikinci en güçlü frekans, en güçlüye çok yakınsa (dominans yoksa) bu DTMF değil sestir.
-                const lowDominance = maxLow.power / (secondLow.power + 1e-10);
-                const highDominance = maxHigh.power / (secondHigh.power + 1e-10);
-
-                if (lowDominance < settings.minSnr || highDominance < settings.minSnr) {
-                    this.resetDetection("Gürültü / Harmonik Karışım");
-                    updateMetrics(rms, 0, Math.min(lowDominance, highDominance), this.stableCount);
-                    return;
-                }
-
-                // 4. DTMF Twist (Güç Oranı)
-                // Twist = 10 * log10(HighPower / LowPower). İdealde 0-3 dB arasıdır.
-                const twist = 10 * Math.log10((maxHigh.power + 1e-10) / (maxLow.power + 1e-10));
-                if (Math.abs(twist) > settings.maxTwist) {
-                    this.resetDetection("Twist Toleransı Aşıldı");
-                    updateMetrics(rms, twist, (lowDominance+highDominance)/2, this.stableCount);
-                    return;
-                }
-
-                // 5. Fraksiyonel Hassas Frekans Taraması (Sadece geçerli aday bulunduğunda)
-                // Bu adım 2 ile 5 gibi benzer tuşları ayırmada kritik öneme sahiptir.
-                const exactLow = findExactPeak(samples, sampleRate, maxLow.freq);
-                const exactHigh = findExactPeak(samples, sampleRate, maxHigh.freq);
-
-                updateMetrics(rms, twist, (lowDominance+highDominance)/2, this.stableCount);
-                
-                // Öğretme modundaysak, analizi oraya yönlendir
-                if (this.teachModeActive) {
-                    this.handleTeachMode(exactLow, exactHigh);
-                    return;
-                }
-
-                // 6. Profil Eşleştirme Algoritması
-                this.matchProfile(exactLow.freq, exactHigh.freq, rms);
-            }
-
-            matchProfile(measLow, measHigh, rms) {
-                let bestMatch = null;
-                let minDistance = Infinity;
-
-                // Tüm kayıtlı profilleri kontrol et
-                Object.values(profileManager.profiles).forEach(p => {
-                    // Manhattan mesafe hesaplaması (Frekans ekseninde)
-                    const dLow = Math.abs(measLow - p.lowFrequency);
-                    const dHigh = Math.abs(measHigh - p.highFrequency);
-                    const totalDistance = dLow + dHigh;
-
-                    if (totalDistance < minDistance) {
-                        minDistance = totalDistance;
-                        bestMatch = p;
-                    }
-                });
-
-                // Maksimum kabul edilebilir sapma (Örn: toplam 15 Hz)
-                if (minDistance > 15) {
-                    this.resetDetection("Tanımlanamayan Frekans Çifti");
-                    return;
-                }
-
-                // 7. Güven (Confidence) Skoru Hesaplama
-                // Mesafe ne kadar azsa güven o kadar yüksek (0 mesafe = %100)
-                let confidence = Math.max(0, 100 - (minDistance * 6.66));
-                
-                if (confidence < this.minConfidenceConf) {
-                    this.resetDetection("Güven Skoru Düşük");
-                    document.getElementById('confidence-text').innerText = `CONF: ${confidence.toFixed(1)}%`;
-                    document.getElementById('confidence-text').className = "absolute top-4 right-4 text-xs font-mono text-red-500";
-                    return;
-                }
-
-                // 8. Zaman Stabilizasyonu (Debounce)
-                // Tek karede (audio frame) tuş kararı verilmez, peş peşe N kare aynı sonucu vermelidir.
-                if (this.lastMatchedKey === bestMatch.key) {
-                    this.stableCount++;
-                } else {
-                    this.lastMatchedKey = bestMatch.key;
-                    this.stableCount = 1;
-                }
-
-                const settings = CONFIG.SENSITIVITY[this.sensitivityKey];
-                
-                // Arayüzü Güncelle (Karar verilmeden önce de değerleri göster)
-                document.getElementById('status-text').innerText = "Sinyal Doğrulanıyor...";
-                document.getElementById('display-low').innerText = `${measLow.toFixed(1)} Hz`;
-                document.getElementById('display-high').innerText = `${measHigh.toFixed(1)} Hz`;
-                document.getElementById('confidence-text').innerText = `CONF: ${confidence.toFixed(1)}%`;
-                document.getElementById('confidence-text').className = "absolute top-4 right-4 text-xs font-mono text-yellow-500";
-                
-                if (this.stableCount >= settings.stableFrames) {
-                    // KESİN KARAR
-                    document.getElementById('status-text').innerText = "DTMF TESPİT EDİLDİ";
-                    document.getElementById('status-text').className = "absolute top-4 left-4 text-xs font-mono text-emerald-400 font-bold";
-                    document.getElementById('confidence-text').className = "absolute top-4 right-4 text-xs font-mono text-emerald-400 font-bold glow-text-success";
-                    
-                    const digitEl = document.getElementById('main-digit');
-                    
-                    // Geçmişe ekleme kontrolü (Aynı tuşa basılı tutulduğunda 100 kere yazmasın)
-                    if (digitEl.innerText !== bestMatch.key) {
-                        digitEl.innerText = bestMatch.key;
-                        digitEl.className = "text-9xl font-bold font-mono text-sky-400 glow-text transition-all duration-300 transform scale-110";
-                        setTimeout(() => digitEl.classList.remove('scale-110'), 150);
-                        
-                        addToHistory(bestMatch.key);
-                    }
-                }
-            }
-
-            resetDetection(msg) {
-                this.lastMatchedKey = null;
-                this.stableCount = 0;
-                document.getElementById('status-text').innerText = msg;
-                document.getElementById('status-text').className = "absolute top-4 left-4 text-xs font-mono text-gray-500";
-                document.getElementById('confidence-text').innerText = "CONF: 0%";
-                document.getElementById('confidence-text').className = "absolute top-4 right-4 text-xs font-mono text-gray-600";
-                
-                const digitEl = document.getElementById('main-digit');
-                if(digitEl.innerText !== '-') {
-                     digitEl.innerText = '-';
-                     digitEl.className = "text-9xl font-bold font-mono text-gray-800 transition-all duration-300";
-                }
-                
-                document.getElementById('display-low').innerText = "---.- Hz";
-                document.getElementById('display-high').innerText = "----.- Hz";
-            }
-
-            // Öğretme Modu Fonksiyonları
-            startTeach(key) {
-                this.teachModeActive = true;
-                this.teachTargetKey = key;
-                this.teachData.samples = [];
-                
-                document.getElementById('teach-target-title').innerText = `${key} Tuşunu Öğretiliyor`;
-                document.getElementById('teach-target-key').innerText = key;
-                document.getElementById('teach-active-zone').classList.remove('hidden');
-                document.getElementById('btn-teach-save').disabled = true;
-                document.getElementById('btn-teach-save').classList.add('opacity-50', 'cursor-not-allowed');
-                
-                // Diğer sekmelere geçişi engellemek iyi olabilir ama basit tutalım.
-            }
-
-            cancelTeach() {
-                this.teachModeActive = false;
-                this.teachTargetKey = null;
-                document.getElementById('teach-active-zone').classList.add('hidden');
-            }
-
-            handleTeachMode(exactLow, exactHigh) {
-                // Öğretme modunda stabil bir sinyal yakalanırsa diziye ekle
-                this.teachData.samples.push({ l: exactLow.freq, h: exactHigh.freq });
-                
-                // Son 10 stabil frame'in ortalamasını al
-                if (this.teachData.samples.length > 20) {
-                    this.teachData.samples.shift(); // Sürekli yenile
-                }
-
-                if (this.teachData.samples.length >= 10) {
-                    let avgL = this.teachData.samples.reduce((a,b)=>a+b.l, 0) / this.teachData.samples.length;
-                    let avgH = this.teachData.samples.reduce((a,b)=>a+b.h, 0) / this.teachData.samples.length;
-                    
-                    document.getElementById('teach-val-low').innerText = `${avgL.toFixed(2)} Hz`;
-                    document.getElementById('teach-val-high').innerText = `${avgH.toFixed(2)} Hz`;
-                    document.getElementById('teach-val-low').className = "text-xl text-emerald-400 font-bold";
-                    document.getElementById('teach-val-high').className = "text-xl text-emerald-400 font-bold";
-                    document.getElementById('teach-val-quality').innerText = "Mükemmel";
-                    document.getElementById('teach-val-quality').className = "text-xl text-emerald-400 font-bold";
-
-                    // Kaydet butonunu aktifleştir
-                    const saveBtn = document.getElementById('btn-teach-save');
-                    saveBtn.disabled = false;
-                    saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    
-                    // Geçici referans tutalım ki butona basınca kaydedelim
-                    this.teachData.finalL = avgL;
-                    this.teachData.finalH = avgH;
-                } else {
-                    document.getElementById('teach-val-low').innerText = `${exactLow.freq.toFixed(1)} Hz`;
-                    document.getElementById('teach-val-high').innerText = `${exactHigh.freq.toFixed(1)} Hz`;
-                    document.getElementById('teach-val-low').className = "text-xl text-yellow-500";
-                    document.getElementById('teach-val-high').className = "text-xl text-yellow-500";
-                    document.getElementById('teach-val-quality').innerText = "Bekleniyor...";
-                    document.getElementById('teach-val-quality').className = "text-xl text-yellow-500";
-                }
-            }
-
-            saveTeach() {
-                if (this.teachTargetKey && this.teachData.finalL && this.teachData.finalH) {
-                    profileManager.updateCustom(this.teachTargetKey, this.teachData.finalL, this.teachData.finalH);
-                    this.cancelTeach();
-                    alert(`${this.teachTargetKey} tuşu başarıyla cihazınızın profiline göre kaydedildi.`);
-                }
-            }
-        }
-        const engine = new DTMFEngine();
-
-        /* =========================================================================
-           5. ARAYÜZ (UI) GÜNCELLEME FONKSİYONLARI
-           ========================================================================= */
-
-        function drawSpectrum(ctx, canvas, results) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const w = canvas.width;
-            const h = canvas.height - 20; // Text margin
-            const barWidth = w / results.length;
-
-            results.forEach((res, i) => {
-                // Enerjiyi görsel logaritmik skalaya çevir
-                let powerVis = Math.min(h, Math.log10(res.power + 1) * 3000); 
-                if (isNaN(powerVis) || powerVis < 0) powerVis = 0;
-                
-                const x = i * barWidth;
-                const y = h - powerVis;
-                
-                // Bar çizimi
-                ctx.fillStyle = '#38bdf8'; // Sky 400
-                ctx.fillRect(x + 5, y, barWidth - 10, powerVis);
-                
-                // Frekans etiketi
-                ctx.fillStyle = '#9ca3af'; // Gray 400
-                ctx.font = '10px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(res.freq, x + (barWidth / 2), h + 15);
-            });
-        }
-
-        function resizeCanvas() {
-            const cw1 = document.getElementById('canvas-low').parentElement.clientWidth;
-            const ch1 = document.getElementById('canvas-low').parentElement.clientHeight;
-            document.getElementById('canvas-low').width = cw1;
-            document.getElementById('canvas-low').height = ch1 - 20; // Alt etiket payı
-
-            const cw2 = document.getElementById('canvas-high').parentElement.clientWidth;
-            const ch2 = document.getElementById('canvas-high').parentElement.clientHeight;
-            document.getElementById('canvas-high').width = cw2;
-            document.getElementById('canvas-high').height = ch2 - 20;
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        function updateMetrics(rms, twist, snr, stability) {
-            document.getElementById('metric-rms').innerText = rms.toFixed(4);
-            document.getElementById('metric-twist').innerText = isNaN(twist) ? "N/A" : twist.toFixed(2) + " dB";
-            document.getElementById('metric-snr').innerText = isNaN(snr) ? "N/A" : snr.toFixed(1);
-            
-            const reqFrames = CONFIG.SENSITIVITY[engine.sensitivityKey].stableFrames;
-            document.getElementById('metric-stability').innerText = `${stability} / ${reqFrames}`;
-            
-            if (stability >= reqFrames) {
-                document.getElementById('metric-stability').className = "text-emerald-400 font-bold";
-            } else {
-                document.getElementById('metric-stability').className = "";
-            }
-        }
-
-        function addToHistory(key) {
-            const container = document.getElementById('history-container');
-            const span = document.createElement('span');
-            span.innerText = key;
-            span.className = "inline-block px-1 font-bold text-sky-400";
-            container.appendChild(span);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function updateProfilesTable() {
-            const tbody = document.getElementById('profiles-table-body');
-            tbody.innerHTML = '';
-            
-            // Standart değerlerle karşılaştırmak için
-            const getStandard = (k) => CONFIG.DTMF_KEYS.find(x => x.key === k);
-
-            Object.values(profileManager.profiles).sort((a,b) => {
-                if(a.key === '*' || a.key === '#') return 1;
-                return a.key.localeCompare(b.key);
-            }).forEach(p => {
-                const std = getStandard(p.key);
-                const tr = document.createElement('tr');
-                
-                let diffText = '-';
-                if (p.isCustom) {
-                    const lDiff = (p.lowFrequency - std.low).toFixed(1);
-                    const hDiff = (p.highFrequency - std.high).toFixed(1);
-                    diffText = `L:${lDiff > 0 ? '+'+lDiff : lDiff} H:${hDiff > 0 ? '+'+hDiff : hDiff}`;
-                }
-
-                tr.innerHTML = `
-                    <td class="py-3 font-bold text-sky-400">${p.key}</td>
-                    <td class="py-3 text-gray-500">${std.low} + ${std.high}</td>
-                    <td class="py-3 ${p.isCustom ? 'text-emerald-400 font-bold' : 'text-gray-400'}">${p.lowFrequency} + ${p.highFrequency}</td>
-                    <td class="py-3 text-xs ${p.isCustom ? 'text-yellow-500' : 'text-gray-600'}">${diffText}</td>
-                    <td class="py-3 text-right">
-                        ${p.isCustom ? `<button onclick="resetSingleProfile('${p.key}')" class="px-2 py-1 bg-red-900/50 hover:bg-red-900 text-red-300 rounded text-xs transition-colors">Sıfırla</button>` : `<span class="text-xs text-gray-600">Standart</span>`}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            
-            // Veri ekranındaki JSON textarea'yı da güncelle
-            document.getElementById('data-io').value = profileManager.getJSON();
-        }
-
-        window.resetSingleProfile = function(key) {
-            const std = CONFIG.DTMF_KEYS.find(x => x.key === key);
-            profileManager.profiles[key] = {
-                key: key,
-                lowFrequency: std.low,
-                highFrequency: std.high,
-                isCustom: false
-            };
-            profileManager.save();
-        }
-
-        function buildTeachGrid() {
-            const grid = document.getElementById('teach-grid');
-            grid.innerHTML = '';
-            CONFIG.DTMF_KEYS.forEach(k => {
-                const btn = document.createElement('button');
-                const isCustom = profileManager.profiles[k.key]?.isCustom;
-                btn.className = `p-4 rounded-xl font-mono text-xl font-bold transition-all border ${isCustom ? 'bg-emerald-900/20 border-emerald-500/50 text-emerald-400' : 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-300'}`;
-                btn.innerText = k.key;
-                
-                if(isCustom) {
-                    const badge = document.createElement('div');
-                    badge.className = "text-[9px] uppercase tracking-wider text-emerald-500/70 mt-1 font-sans";
-                    badge.innerText = "Öğrenildi";
-                    btn.appendChild(badge);
-                }
-
-                btn.onclick = () => engine.startTeach(k.key);
-                grid.appendChild(btn);
-            });
-        }
-
-        /* =========================================================================
-           6. OLAY DİNLEYİCİLERİ (EVENTS)
-           ========================================================================= */
-        
-        document.getElementById('btn-start').addEventListener('click', () => {
-            engine.start();
-        });
-
-        // Tab Yönetimi
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'text-sky-300'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.add('text-gray-400'));
-                
-                e.target.classList.add('active', 'text-sky-300');
-                e.target.classList.remove('text-gray-400');
-                
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                const target = e.target.getAttribute('data-target');
-                document.getElementById(target).classList.remove('hidden');
-                
-                // Tab değişimlerinde spesifik işler
-                if(target === 'panel-teach') {
-                    buildTeachGrid();
-                } else if(target === 'panel-monitor') {
-                    resizeCanvas();
-                } else if(target === 'panel-data') {
-                    document.getElementById('data-io').value = profileManager.getJSON();
-                }
-            });
-        });
-
-        // Ayarlar
-        document.getElementById('setting-sensitivity').addEventListener('change', (e) => {
-            engine.sensitivityKey = e.target.value;
-        });
-
-        document.getElementById('setting-confidence').addEventListener('input', (e) => {
-            engine.minConfidenceConf = parseInt(e.target.value);
-            document.getElementById('val-confidence').innerText = `${e.target.value}%`;
-        });
-
-        // Öğretme Modu Butonları
-        document.getElementById('btn-teach-cancel').addEventListener('click', () => {
-            engine.cancelTeach();
-        });
-
-        document.getElementById('btn-teach-save').addEventListener('click', () => {
-            engine.saveTeach();
-            buildTeachGrid(); // Yenile
-        });
-
-        document.getElementById('btn-reset-profiles').addEventListener('click', () => {
-            if(confirm("Tüm kişisel ölçümleriniz silinecek ve sistem standart DTMF frekanslarına dönecektir. Onaylıyor musunuz?")) {
-                profileManager.reset();
-                buildTeachGrid();
-                alert("Profiller sıfırlandı.");
-            }
-        });
-
-        // Veri Modu Butonları
-        document.getElementById('btn-export').addEventListener('click', () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(profileManager.getJSON());
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "dtmf_profiles.json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        });
-
-        document.getElementById('btn-import').addEventListener('click', () => {
-            const data = document.getElementById('data-io').value;
-            if (profileManager.importJSON(data)) {
-                alert("Profiller başarıyla içe aktarıldı!");
-                profileManager.save(); // Localstorage'a yaz
-            } else {
-                alert("Geçersiz JSON formatı. İçe aktarma başarısız oldu.");
-            }
-        });
-
-        document.getElementById('btn-clear-history').addEventListener('click', () => {
-            document.getElementById('history-container').innerHTML = '';
-        });
-
-        // İlk Yükleme
-        updateProfilesTable();
-
-    </script>
+    <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Hazır</span></div>
+  </header>
+
+  <section class="camera">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="overlay"></canvas>
+    <div class="camera-ui">
+      <div class="badge" id="camBadge">CAMERA OFFLINE</div>
+      <div id="alert" class="alert">HAREKET ALGILANDI</div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button class="primary" id="startBtn">Kamerayı Başlat</button>
+    <button id="micBtn">Mikrofonu Başlat</button>
+    <button id="snapBtn" disabled>Ekran Görüntüsü</button>
+    <button class="danger" id="stopBtn" disabled>Durdur</button>
+  </div>
+
+  <section class="metrics">
+    <div class="card"><div class="label">Hareket</div><div class="value" id="motionValue">0%</div><div class="sub" id="motionState">Bekleniyor</div></div>
+    <div class="card"><div class="label">Ses</div><div class="value" id="dbValue">—</div><div class="sub" id="soundState">Mikrofon kapalı</div></div>
+    <div class="card"><div class="label">Işık</div><div class="value" id="lightValue">—</div><div class="sub" id="lightState">Kamera kapalı</div></div>
+  </section>
+
+  <div class="layout">
+    <section class="panel">
+      <h2>Analiz Ayarları</h2>
+      <div class="range-row">
+        <div><span>Hareket hassasiyeti</span><b id="motionSensOut">18</b></div>
+        <input id="motionSens" type="range" min="3" max="50" value="18">
+      </div>
+      <div class="range-row">
+        <div><span>Ses alarm eşiği</span><b id="soundThreshOut">55</b></div>
+        <input id="soundThresh" type="range" min="20" max="100" value="55">
+      </div>
+      <div class="range-row">
+        <div><span>Örnekleme aralığı</span><b id="intervalOut">250 ms</b></div>
+        <input id="interval" type="range" min="100" max="1000" step="50" value="250">
+      </div>
+      <button id="zoneBtn">İzleme Bölgesini Göster</button>
+    </section>
+
+    <section class="panel">
+      <h2>Ses Spektrumu</h2>
+      <div class="canvas-wrap"><canvas id="spectrum"></canvas></div>
+      <div class="sub" style="margin-top:8px">Mikrofon açıksa canlı frekans enerjisi gösterilir.</div>
+    </section>
+
+    <section class="panel" style="grid-column:1/-1">
+      <h2>Olay Günlüğü</h2>
+      <div id="events" class="events">
+        <div class="event info"><span class="time">--:--:--</span><span>Sistem başlatılmayı bekliyor.</span></div>
+      </div>
+      <button id="clearEvents" style="margin-top:10px">Günlüğü Temizle</button>
+    </section>
+  </div>
+
+  <div class="footer">
+    Analizler tarayıcı üzerinde gerçekleştirilir. Kamera ve mikrofon yalnızca izin verdiğinizde kullanılır.
+  </div>
+</div>
+
+<script>
+const video=document.getElementById('video');
+const overlay=document.getElementById('overlay'), octx=overlay.getContext('2d');
+const spectrum=document.getElementById('spectrum'), sctx=spectrum.getContext('2d');
+const startBtn=document.getElementById('startBtn'), micBtn=document.getElementById('micBtn');
+const snapBtn=document.getElementById('snapBtn'), stopBtn=document.getElementById('stopBtn');
+const statusDot=document.getElementById('statusDot'), statusText=document.getElementById('statusText');
+const camBadge=document.getElementById('camBadge'), alertBox=document.getElementById('alert');
+const motionValue=document.getElementById('motionValue'), motionState=document.getElementById('motionState');
+const dbValue=document.getElementById('dbValue'), soundState=document.getElementById('soundState');
+const lightValue=document.getElementById('lightValue'), lightState=document.getElementById('lightState');
+const motionSens=document.getElementById('motionSens'), soundThresh=document.getElementById('soundThresh'), intervalInput=document.getElementById('interval');
+const motionSensOut=document.getElementById('motionSensOut'), soundThreshOut=document.getElementById('soundThreshOut'), intervalOut=document.getElementById('intervalOut');
+const events=document.getElementById('events');
+
+let stream=null, micStream=null, audioCtx=null, analyser=null, audioData=null;
+let running=false, lastFrame=null, lastScan=0, alertUntil=0, zoneVisible=false;
+let motionTimer=null, micTimer=null;
+
+function now(){
+  return new Date().toLocaleTimeString('tr-TR',{hour12:false});
+}
+function logEvent(text,type='info'){
+  const row=document.createElement('div'); row.className='event '+type;
+  row.innerHTML='<span class="time">'+now()+'</span><span></span>';
+  row.lastElementChild.textContent=text;
+  events.prepend(row);
+  while(events.children.length>40) events.lastElementChild.remove();
+}
+function setStatus(text,live=false){
+  statusText.textContent=text; statusDot.classList.toggle('live',live);
+}
+function fitCanvas(){
+  const r=video.getBoundingClientRect();
+  if(!r.width)return;
+  overlay.width=Math.round(r.width*devicePixelRatio);
+  overlay.height=Math.round(r.height*devicePixelRatio);
+  octx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+function motionScan(){
+  if(!running || video.readyState<2)return;
+  const nowMs=performance.now();
+  const wait=+intervalInput.value;
+  if(nowMs-lastScan<wait)return;
+  lastScan=nowMs;
+
+  const w=160,h=100;
+  const c=document.createElement('canvas'); c.width=w;c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.drawImage(video,0,0,w,h);
+  const data=x.getImageData(0,0,w,h).data;
+
+  if(!lastFrame){lastFrame=new Uint8ClampedArray(data);return}
+  let changed=0,total=0;
+  const threshold=+motionSens.value;
+  for(let i=0;i<data.length;i+=4){
+    const lum=(data[i]*.299+data[i+1]*.587+data[i+2]*.114);
+    const prev=lastFrame[i]*.299+lastFrame[i+1]*.587+lastFrame[i+2]*.114;
+    if(Math.abs(lum-prev)>threshold)changed++;
+    total++;
+  }
+  lastFrame=new Uint8ClampedArray(data);
+
+  const pct=Math.min(100,changed/total*100*4);
+  motionValue.textContent=pct.toFixed(1)+'%';
+  const detected=pct>=8;
+  motionState.textContent=detected?'Hareket algılandı':'Sakin';
+  if(detected && performance.now()>alertUntil){
+    alertUntil=performance.now()+1800;
+    alertBox.classList.add('show');
+    logEvent('Hareket algılandı — değişim '+pct.toFixed(1)+'%','motion');
+    setTimeout(()=>alertBox.classList.remove('show'),1500);
+  }
+  drawOverlay(detected);
+}
+function drawOverlay(detected){
+  const r=video.getBoundingClientRect();
+  octx.clearRect(0,0,r.width,r.height);
+  if(zoneVisible){
+    octx.strokeStyle=detected?'#ff5577':'#7cf2b1';
+    octx.lineWidth=2;
+    octx.setLineDash([8,6]);
+    octx.strokeRect(r.width*.12,r.height*.12,r.width*.76,r.height*.76);
+    octx.setLineDash([]);
+  }
+}
+function lightScan(){
+  if(!running)return;
+  const c=document.createElement('canvas');c.width=64;c.height=48;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(video,0,0,64,48);
+  const d=x.getImageData(0,0,64,48).data;
+  let sum=0;
+  for(let i=0;i<d.length;i+=4)sum+=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+  const p=sum/(64*48)/255*100;
+  lightValue.textContent=p.toFixed(0)+'%';
+  lightState.textContent=p<12?'Çok karanlık':p<30?'Düşük ışık':p<65?'Normal':'Parlak';
+}
+async function startCamera(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=stream; await video.play();
+    running=true; lastFrame=null; startBtn.disabled=true;stopBtn.disabled=false;snapBtn.disabled=false;
+    camBadge.textContent='CAMERA ONLINE';setStatus('Analiz aktif',true);
+    logEvent('Kamera başlatıldı.','info');
+    fitCanvas();
+  }catch(e){
+    logEvent('Kamera izni alınamadı: '+e.message,'motion');
+    setStatus('Kamera izni gerekli',false);
+  }
+}
+async function startMic(){
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(micStream);
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=.75;
+    src.connect(analyser); audioData=new Uint8Array(analyser.fftSize);
+    micBtn.textContent='Mikrofon Açık';micBtn.disabled=true;
+    soundState.textContent='Dinleniyor'; logEvent('Mikrofon analizi başlatıldı.','info');
+    drawSpectrum();
+  }catch(e){logEvent('Mikrofon izni alınamadı: '+e.message,'sound')}
+}
+function drawSpectrum(){
+  if(!analyser)return;
+  analyser.getByteFrequencyData(audioData);
+  let sum=0;for(const v of audioData)sum+=v*v;
+  const rms=Math.sqrt(sum/audioData.length)/255;
+  const db=Math.max(0,Math.min(100,20*Math.log10(Math.max(rms,.00001))+100));
+  dbValue.textContent=db.toFixed(0)+' dB';
+  const threshold=+soundThresh.value;
+  if(db>=threshold){
+    soundState.textContent='Ses eşiği aşıldı';
+    if(performance.now()>alertUntil){
+      alertUntil=performance.now()+1200;
+      alertBox.textContent='YÜKSEK SES ALGILANDI';alertBox.classList.add('show');
+      logEvent('Ses eşiği aşıldı — '+db.toFixed(0)+' dB','sound');
+      setTimeout(()=>{alertBox.classList.remove('show');alertBox.textContent='HAREKET ALGILANDI'},1000);
+    }
+  }else soundState.textContent='Normal';
+
+  const w=spectrum.clientWidth,h=spectrum.clientHeight;
+  const dpr=devicePixelRatio||1;
+  if(spectrum.width!==w*dpr){spectrum.width=w*dpr;spectrum.height=h*dpr;sctx.setTransform(dpr,0,0,dpr,0,0)}
+  sctx.clearRect(0,0,w,h);
+  const bars=Math.min(80,Math.floor(audioData.length/3));
+  const bw=w/bars;
+  for(let i=0;i<bars;i++){
+    const v=audioData[i*3]/255;
+    sctx.fillStyle=v>.75?'#ff5577':v>.45?'#ffd166':'#7cf2b1';
+    sctx.fillRect(i*bw,h-v*h,bw-1,v*h);
+  }
+  requestAnimationFrame(drawSpectrum);
+}
+function stopAll(){
+  running=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
+  if(audioCtx){audioCtx.close();audioCtx=null}
+  video.srcObject=null;lastFrame=null;
+  startBtn.disabled=false;stopBtn.disabled=true;snapBtn.disabled=true;
+  micBtn.disabled=false;micBtn.textContent='Mikrofonu Başlat';
+  camBadge.textContent='CAMERA OFFLINE';setStatus('Durduruldu',false);
+  motionValue.textContent='0%';dbValue.textContent='—';lightValue.textContent='—';
+  logEvent('Sistem durduruldu.','info');
+}
+function screenshot(){
+  if(!running)return;
+  const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;
+  const x=c.getContext('2d');x.drawImage(video,0,0,c.width,c.height);
+  const a=document.createElement('a');a.href=c.toDataURL('image/jpeg',.9);a.download='gece-protokolu-'+Date.now()+'.jpg';a.click();
+  logEvent('Kamera görüntüsü kaydedildi.','info');
+}
+startBtn.onclick=startCamera;micBtn.onclick=startMic;stopBtn.onclick=stopAll;snapBtn.onclick=screenshot;
+document.getElementById('zoneBtn').onclick=()=>{zoneVisible=!zoneVisible;document.getElementById('zoneBtn').textContent=zoneVisible?'İzleme Bölgesini Gizle':'İzleme Bölgesini Göster';};
+document.getElementById('clearEvents').onclick=()=>{events.innerHTML='';logEvent('Olay günlüğü temizlendi.','info')};
+motionSens.oninput=()=>motionSensOut.textContent=motionSens.value;
+soundThresh.oninput=()=>soundThreshOut.textContent=soundThresh.value;
+intervalInput.oninput=()=>intervalOut.textContent=intervalInput.value+' ms';
+window.addEventListener('resize',fitCanvas);
+setInterval(()=>{if(running){motionScan();lightScan()}},50);
+</script>
 </body>
 </html>
